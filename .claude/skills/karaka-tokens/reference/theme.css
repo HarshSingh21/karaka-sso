@@ -1,0 +1,301 @@
+/* =========================================================================
+   Opal Suite — canonical theme
+   Source of truth for ORBIT, AURA, PULSE, and the suite login page.
+   Finalized in the ORBIT redesign session — do not fork silently; if a
+   product needs a new token or component, add it here first.
+
+   Usage: every app is a self-contained single HTML file (portable, no
+   build step, no server). Don't <link> this file at runtime — copy the
+   @font-face + :root blocks and whichever component classes you use
+   straight into the app's own <style>, so each file stays independently
+   viewable via file://. This file is the reference to copy FROM.
+   ========================================================================= */
+
+/* ---------- Fonts ----------
+   Self-hosted as base64 data URIs — the Artifact/browser CSP blocks
+   Google Fonts CDN requests, and file:// pages shouldn't depend on network
+   access anyway. Source files: ./fonts/plus-jakarta-sans.b64 (variable,
+   weights 300–800) and ./fonts/jetbrains-mono.b64 (variable, 400–700).
+   Both are Google Fonts variable-font binaries — Google serves the SAME
+   file for every static weight request, so one @font-face with a
+   `font-weight: <min> <max>` range covers the whole axis; you do not need
+   one @font-face per weight. */
+@font-face{
+  font-family:'Plus Jakarta Sans';
+  font-weight:300 800;
+  font-style:normal;
+  font-display:swap;
+  src:url(data:font/woff2;base64,__PJS_B64__) format('woff2');
+}
+@font-face{
+  font-family:'JetBrains Mono';
+  font-weight:400 700;
+  font-style:normal;
+  font-display:swap;
+  src:url(data:font/woff2;base64,__JBM_B64__) format('woff2');
+}
+
+/* ---------- Design tokens ----------
+   Light palette lives on bare :root. Dark redefines the SAME token names
+   twice: once under `@media (prefers-color-scheme: dark)` guarded by
+   `:not([data-theme="light"])` (so an explicit light choice always wins
+   over OS dark mode), and once under `:root[data-theme="dark"]` (so an
+   explicit dark toggle wins regardless of OS setting). Every component
+   below reads colors ONLY through these tokens — never a literal hex —
+   so light/dark/system all resolve correctly with zero component-level
+   dark-mode code. */
+:root{
+  --bg:#EEF1F8;
+  --surface:#FFFFFF;
+  --surface-2:#F6F8FC;
+  --surface-3:#EBEFF7;
+  --ink:#0C1220;
+  --ink-soft:#4B5670;
+  --ink-faint:#7C879E;
+  --border:#DEE3EE;
+  --border-soft:#EAEDF5;
+  --accent:#2451FF;
+  --accent-ink:#FFFFFF;
+  --accent-wash:#E7ECFF;
+  --info:#0F8B8D;
+  --info-ink:#FFFFFF;
+  --info-wash:#E0F4F2;
+  --warn:#A6480A;
+  --warn-wash:#FCEEDC;
+  --danger:#B7291F;
+  --danger-wash:#FBE7E5;
+  --success:#13724A;
+  --success-wash:#E1F5EA;
+  --shadow-xs:0 1px 2px rgba(16,24,40,.04);
+  --shadow-sm:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.05);
+  --shadow-md:0 4px 10px rgba(16,24,40,.06),0 14px 28px -10px rgba(16,24,40,.16);
+  --shadow-hover:0 10px 24px -8px rgba(16,24,40,.16);
+  /* Rail tokens are intentionally invariant across light/dark — the
+     sidebar is a deliberate fixed-dark rail in every theme, not a themed
+     surface, so these are declared once and never overridden. */
+  --rail-bg:#0A1120;
+  --rail-bg-2:#0E1830;
+  --rail-line:#1D2A45;
+  --rail-ink:#F3F6FC;
+  --rail-ink-soft:#8493B3;
+  --rail-ink-faint:#4C5C7C;
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A0E17;
+    --surface:#111726;
+    --surface-2:#161D2E;
+    --surface-3:#1C2436;
+    --ink:#EDF0F7;
+    --ink-soft:#9AA5BD;
+    --ink-faint:#68738C;
+    --border:#232B40;
+    --border-soft:#1B2233;
+    --accent:#5B82FF;
+    --accent-ink:#08101F;
+    --accent-wash:#161F38;
+    --info:#2DD4C6;
+    --info-ink:#06201E;
+    --info-wash:#0F2C2B;
+    --warn:#F0A94E;
+    --warn-wash:#2E220E;
+    --danger:#F1685D;
+    --danger-wash:#2E1614;
+    --success:#4ADE94;
+    --success-wash:#0F2A1D;
+    --shadow-xs:0 1px 2px rgba(0,0,0,.35);
+    --shadow-sm:0 1px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.3);
+    --shadow-md:0 4px 10px rgba(0,0,0,.35),0 14px 28px -10px rgba(0,0,0,.55);
+    --shadow-hover:0 10px 24px -8px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A0E17;
+  --surface:#111726;
+  --surface-2:#161D2E;
+  --surface-3:#1C2436;
+  --ink:#EDF0F7;
+  --ink-soft:#9AA5BD;
+  --ink-faint:#68738C;
+  --border:#232B40;
+  --border-soft:#1B2233;
+  --accent:#5B82FF;
+  --accent-ink:#08101F;
+  --accent-wash:#161F38;
+  --info:#2DD4C6;
+  --info-ink:#06201E;
+  --info-wash:#0F2C2B;
+  --warn:#F0A94E;
+  --warn-wash:#2E220E;
+  --danger:#F1685D;
+  --danger-wash:#2E1614;
+  --success:#4ADE94;
+  --success-wash:#0F2A1D;
+  --shadow-xs:0 1px 2px rgba(0,0,0,.35);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.4),0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:0 4px 10px rgba(0,0,0,.35),0 14px 28px -10px rgba(0,0,0,.55);
+  --shadow-hover:0 10px 24px -8px rgba(0,0,0,.5);
+}
+
+/* ---------- Base ---------- */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  font-size:13.5px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--accent-wash);color:var(--ink)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+button,input,select{font-family:inherit;font-size:inherit}
+button{cursor:pointer}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+/* ---------- App shell: rail (sidebar) + topbar ----------
+   Every product in the suite uses this same shell: a fixed-dark rail on
+   the left (brand mark, nav, org footer) and a light content area with a
+   topbar. Keep the rail nav item set per-product, but the shell chrome
+   itself (measurements, colors, states) should not drift between apps. */
+#app{display:flex;height:100vh;width:100%;overflow:hidden}
+
+.rail{
+  width:246px;flex:none;height:100%;display:flex;flex-direction:column;
+  background:var(--rail-bg);border-right:1px solid var(--rail-line);
+  padding:20px 14px 14px;
+}
+.rail-brand{display:flex;align-items:center;gap:11px;padding:2px 8px 20px}
+.rail-mark-wrap{position:relative;width:34px;height:34px;flex:none}
+.rail-mark-glow{position:absolute;inset:-6px;background:radial-gradient(circle,rgba(36,81,255,.45),rgba(15,139,141,0) 70%);filter:blur(4px);pointer-events:none}
+.rail-mark{position:relative;width:34px;height:34px;display:block}
+.rail-mark .ring{transform-origin:32px 32px;animation:mark-spin 16s linear infinite}
+@media (prefers-reduced-motion:reduce){.rail-mark .ring{animation:none}}
+@keyframes mark-spin{to{transform:rotate(360deg)}}
+.rail-name-row{display:flex;align-items:center;gap:7px}
+.rail-name{font-weight:800;font-size:16.5px;letter-spacing:-.01em;color:var(--rail-ink)}
+.rail-ai-pill{font-size:8.5px;font-weight:800;letter-spacing:.05em;color:#8FEAE0;background:rgba(15,139,141,.22);border:1px solid rgba(45,212,198,.4);padding:2px 6px;border-radius:99px;line-height:1.3}
+.rail-sub{font-size:10.5px;color:var(--rail-ink-soft);margin-top:1px}
+
+.rail-label{font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--rail-ink-faint);text-transform:uppercase;padding:14px 10px 6px}
+.rail-nav{display:flex;flex-direction:column;gap:1px}
+.rail-link{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;
+  color:var(--rail-ink-soft);font-weight:600;font-size:13px;cursor:pointer;border:none;background:none;text-align:left;width:100%;
+  transition:background .14s ease,color .14s ease;
+}
+.rail-link:hover{background:var(--rail-bg-2);color:var(--rail-ink)}
+.rail-link.active{background:linear-gradient(90deg,#182550,#122038);color:#fff;box-shadow:inset 2px 0 0 var(--accent)}
+.rail-link .ic{width:16px;text-align:center;opacity:.9;flex:none}
+/* "SOON" pattern — use this for any nav item / cross-app link to a
+   product that isn't wired up yet, rather than hiding it or inventing a
+   new disabled-state style per app. */
+.rail-soon{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:8px;color:var(--rail-ink-faint);cursor:not-allowed}
+.rail-soon-tag{font-size:8.5px;font-weight:700;color:var(--rail-ink-soft);border:1px solid var(--rail-line);padding:1px 6px;border-radius:9px;letter-spacing:.05em}
+.rail-foot{margin-top:auto;padding-top:12px;border-top:1px solid var(--rail-line)}
+.rail-org{display:flex;gap:9px;align-items:center;padding:8px 6px}
+.rail-org-badge{width:30px;height:30px;border-radius:50%;background:#fde68a;color:#7a4d05;display:grid;place-items:center;font-weight:700;font-size:11.5px;flex:none}
+.rail-org-name{font-weight:700;font-size:12.5px;color:var(--rail-ink)}
+.rail-org-meta{font-size:10.5px;color:var(--rail-ink-soft)}
+.theme-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;margin-bottom:8px;border-radius:8px;border:1px solid var(--rail-line);background:none;color:var(--rail-ink-soft);font-size:11.5px;font-weight:600}
+.theme-btn:hover{background:var(--rail-bg-2);color:var(--rail-ink)}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;height:100%}
+.topbar{
+  flex:none;display:flex;align-items:center;gap:14px;padding:0 26px;height:58px;
+  background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--shadow-xs);position:relative;z-index:1;
+}
+.topbar-title{font-size:15.5px;font-weight:700;letter-spacing:-.01em}
+.toast{margin-left:auto;display:flex;align-items:center;gap:10px;background:var(--success-wash);color:var(--success);padding:6px 12px;border-radius:7px;font-size:12.5px;font-weight:600}
+.toast button{background:none;border:none;color:inherit;font-weight:700;cursor:pointer;font-size:13px;line-height:1}
+
+.content{flex:1;overflow-y:auto;padding:24px 26px 40px}
+.content-inner{max-width:1180px;margin:0 auto;animation:fade .2s ease}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+.page-head{position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+/* .hero — ambient glow accent. Use on ONE page-head per app (the
+   landing/primary view), not on every page — see design principle:
+   "spend your boldness in one place." */
+.page-head.hero::before{content:'';position:absolute;top:-30px;right:-40px;width:340px;height:180px;background:radial-gradient(circle,rgba(36,81,255,.10),rgba(15,139,141,.05) 55%,transparent 72%);pointer-events:none;z-index:-1}
+.page-title{margin:0;font-size:23px;font-weight:800;letter-spacing:-.02em}
+.page-sub{color:var(--ink-soft);font-size:12.5px;margin-top:3px}
+.back-link{display:inline-flex;align-items:center;gap:5px;color:var(--ink-soft);font-size:12px;font-weight:600;cursor:pointer;margin-bottom:12px;background:none;border:none;padding:0}
+.back-link:hover{color:var(--accent)}
+
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:7px;border-radius:8px;padding:8px 15px;font-size:12.5px;font-weight:700;border:1px solid var(--border);background:var(--surface);color:var(--ink);box-shadow:0 1px 0 rgba(14,20,32,.02);transition:border-color .14s ease,background .14s ease,filter .14s ease,transform .05s ease}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{background:none;border-color:transparent;box-shadow:none}
+.btn-ghost:hover{background:var(--surface-2);border-color:var(--border)}
+.btn-sm{padding:6px 11px;font-size:11.5px}
+.btn[disabled]{opacity:.5;cursor:not-allowed;transform:none}
+
+/* ---------- Inputs ---------- */
+.field-label{font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:6px}
+.input,.select{
+  width:100%;height:34px;padding:0 11px;border:1px solid var(--border);border-radius:8px;
+  background:var(--surface);color:var(--ink);font-size:12.5px;box-shadow:0 1px 2px rgba(14,20,32,.03);
+  transition:border-color .14s ease,box-shadow .14s ease;
+}
+.input:focus,.select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+.input::placeholder{color:var(--ink-faint)}
+.select{cursor:pointer}
+.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.toolbar .input{width:216px}
+.toolbar .select{width:auto}
+
+/* ---------- Cards / tables ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:var(--shadow-sm);transition:box-shadow .18s ease,transform .18s ease}
+.card[onclick]:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border)}
+.card-head h3{margin:0;font-size:13.5px;font-weight:700;letter-spacing:-.01em}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 20px;font-size:10.5px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 20px;border-top:1px solid var(--border-soft);color:var(--ink)}
+tr.row-click{cursor:pointer;transition:background .1s ease}
+tr.row-click:hover{background:var(--surface-3)}
+.empty-state{padding:44px 20px;text-align:center;color:var(--ink-soft)}
+.empty-state .glyph{font-size:22px;opacity:.4;margin-bottom:6px}
+
+.avatar{width:32px;height:32px;border-radius:50%;color:#fff;display:grid;place-items:center;font-size:11.5px;font-weight:700;flex:none}
+.emp-cell{display:flex;align-items:center;gap:10px}
+
+/* ---------- Badges (semantic status — separate from --accent) ---------- */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid transparent}
+.badge .dot{width:5px;height:5px;border-radius:50%;background:currentColor}
+.b-active{background:var(--success-wash);color:var(--success);border-color:color-mix(in srgb,var(--success) 22%,transparent)}
+.b-inactive{background:var(--warn-wash);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 22%,transparent)}
+.b-exited{background:var(--surface-2);color:var(--ink-faint);border-color:var(--border)}
+.b-human{background:var(--surface-2);color:var(--ink-soft);border-color:var(--border)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:900px){.grid-2,.grid-4{grid-template-columns:1fr}}
+
+/* ---------- Modal / dialog ---------- */
+.overlay{position:fixed;inset:0;background:rgba(10,14,23,.55);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;animation:overlay-in .15s ease}
+.modal{position:relative;background:var(--surface);border-radius:13px;padding:22px 24px;width:440px;max-width:100%;box-shadow:var(--shadow-md);max-height:88vh;overflow-y:auto;animation:modal-in .16s cubic-bezier(.2,.8,.2,1)}
+@keyframes overlay-in{from{opacity:0}to{opacity:1}}
+@keyframes modal-in{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.overlay,.modal{animation:none}}
+.modal h2{margin:0 0 14px;font-size:15.5px;font-weight:800}
+.modal-close{position:absolute;top:16px;right:16px;width:26px;height:26px;border-radius:7px;border:none;background:none;color:var(--ink-faint);font-size:15px;line-height:1;cursor:pointer}
+.modal-close:hover{background:var(--surface-2);color:var(--ink)}
+.form-grid{display:flex;flex-direction:column;gap:13px}
+.form-row2{display:flex;gap:12px}
+.form-row2 > div{flex:1}
+.notice{background:var(--info-wash);border:1px solid var(--info);border-radius:8px;padding:9px 12px;font-size:11.5px;color:var(--info);margin-bottom:16px;display:flex;gap:8px}
+
+.checkbox-row{display:flex;align-items:center;gap:8px;font-size:12.8px}

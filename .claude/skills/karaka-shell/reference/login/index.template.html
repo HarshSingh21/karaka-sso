@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — Karaka</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='4' y1='6' x2='60' y2='58' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%232451FF'/%3E%3Cstop offset='1' stop-color='%230F8B8D'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230A1120'/%3E%3Ccircle cx='20' cy='42' r='6' fill='url(%23f)'/%3E%3Ccircle cx='44' cy='42' r='6' fill='url(%23f)'/%3E%3Ccircle cx='32' cy='18' r='6' fill='url(%23f)'/%3E%3Cpath d='M20 42 L32 18 L44 42' stroke='url(%23f)' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+@font-face{
+  font-family:'Plus Jakarta Sans';
+  font-weight:300 800;
+  font-style:normal;
+  font-display:swap;
+  src:url(data:font/woff2;base64,__PJS_B64__) format('woff2');
+}
+/* ---- Canonical Opal Suite login (split-hero layout). Structure
+   originally trialled against book-my-show-ui's split hero/glass-card/
+   floating-icon pattern; color and type are ORBIT's own finalized
+   tokens (see the opal-design-tokens skill), not a separate palette.
+   See the opal-suite-shell skill for the full writeup of this layout.
+   Standalone single-file build — does not link shared/theme.css at
+   runtime. The earlier centered-card build lives at ../login/ for
+   reference only. ---- */
+/* Deliberately single-theme: this preview always renders light,
+   regardless of OS/browser dark-mode setting — no @media
+   (prefers-color-scheme) block, no [data-theme="dark"] override. Every
+   color below is still painted explicitly (not left to inherit), so it
+   holds on any host background. */
+:root{
+  --bg:#E9EDF9;
+  --surface:#FAF7F0;
+  --surface-raised:#DEE6FA;
+  --primary:#2451FF;
+  --primary-hover:#1739CC;
+  --accent:#0F8B8D;
+  --foreground:#0C1220;
+  --muted:#40495F;
+  --border-subtle:#DAD4C8;
+  --success:#13724A;
+  --error:#B7291F;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  /* The page's one shared ground — both panels sit ON this color rather
+     than each carrying their own, so the seam between them can be a cut
+     shape instead of a hard edge between two independently-colored
+     boxes. That's what makes it read as one page, not two glued halves. */
+  margin:0;background:var(--surface);color:var(--foreground);
+  font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.display{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-.02em}
+a{color:var(--primary);text-decoration:none}
+button,input{font-family:inherit;font-size:inherit}
+:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--primary)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+.shell{display:flex;flex-wrap:wrap;min-height:100vh}
+
+/* ---------- Left: animated hero panel ----------
+   Always visible — stacks above the form on narrow viewports instead of
+   disappearing, so the headline is never simply hidden by a breakpoint. */
+.hero{
+  position:relative;width:58%;min-width:420px;flex:1 1 420px;overflow:hidden;
+  min-height:320px;
+  /* Deliberately fixed-dark — same exception as ORBIT's own rail
+     (see opal-component-patterns skill): a navy-anchored gradient into
+     teal, not tokenized to --bg, and not subject to any theme switch
+     (this file has none). Follows the Stripe/Linear/Notion convention
+     of a dark hero-gradient panel next to a plain light form side. */
+  background:linear-gradient(155deg,#0A1120 0%,#122A4A 45%,#0F4A50 78%,#0F8B8D 100%);
+  filter:drop-shadow(10px 0 22px rgba(10,17,32,.28));
+  z-index:1;
+}
+/* Angled seam instead of a straight vertical line — cut on the shape
+   itself (clip-path), not a border between two boxes, so the warm page
+   ground shows through the wedge and both panels read as one composite
+   surface. Only above the side-by-side breakpoint; a diagonal cut makes
+   no sense once the layout stacks. */
+@media (min-width:760px){
+  .hero{clip-path:polygon(0 0,100% 0,82% 100%,0 100%)}
+}
+/* Two glow flashes — cobalt + teal — the same two stops as ORBIT's own
+   mark gradient, bright against the dark panel. */
+.hero-blob{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none}
+.hero-blob.b1{width:440px;height:440px;top:-140px;left:-100px;background:rgba(91,130,255,.45)}
+.hero-blob.b2{width:400px;height:400px;bottom:-150px;right:-70px;background:rgba(45,212,198,.4)}
+
+.float-ic{position:absolute;color:rgba(255,255,255,.14);animation:float 6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.float-ic{animation:none}}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-16px) rotate(6deg)}}
+
+.hero-copy{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:40px 56px}
+/* Painted explicitly for the dark panel, not from --foreground/--muted
+   (those are the page's light-mode text tokens — wrong surface here). */
+.hero-copy h1{margin:0;font-size:clamp(32px,5vw,52px);line-height:1.05;color:#FFFFFF}
+.hero-copy h1 .hl{color:#5FE0D2}
+.hero-copy p{max-width:420px;margin:16px 0 0;color:#AFC1DB;font-size:14px}
+
+/* ---------- Right: form ----------
+   No background of its own — it sits directly on the shared page ground
+   (body { background: var(--surface) }), which is what the hero's
+   clip-path reveals through the angled cut. One ground, one seam shape,
+   instead of two panels each carrying an independent fill. */
+.form-side{flex:1 1 380px;display:flex;align-items:center;justify-content:center;padding:48px 24px;position:relative}
+.form-wrap{position:relative;z-index:1;width:100%;max-width:400px}
+@media (min-width:760px){
+  /* Pull the sign-in card slightly left, astride the seam, so it
+     visually anchors both halves together rather than living entirely
+     inside the light half. Scoped to signinView only — the product
+     picker has no hero panel to straddle, so it stays centered. */
+  .form-wrap-signin{margin-left:-34px}
+}
+.brand-row{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:36px}
+.brand-lockup{display:flex;justify-content:center;align-items:center;gap:9px}
+.brand-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;box-shadow:0 8px 20px -6px rgba(36,81,255,.35)}
+.brand-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.01em;color:var(--foreground)}
+.brand-name .hl{color:var(--primary)}
+/* Org tag: the *customer's* workspace name (e.g. "Opal") — distinct from the
+   Karaka product wordmark above it. Small and quiet on purpose: this is
+   tenant context, not a second brand competing with Karaka's mark. */
+.org-tag{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--border-subtle);padding:3px 10px;border-radius:99px;background:var(--surface-raised)}
+
+.glass{
+  background:var(--surface);border:1px solid var(--border-subtle);border-radius:18px;
+  padding:32px 30px;box-shadow:0 24px 60px -20px rgba(16,24,40,.24),0 2px 6px rgba(16,24,40,.08);
+  animation:rise .4s ease;
+}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.glass{animation:none}}
+.glass.shake{animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
+@keyframes shake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}
+
+.glass h2{margin:0;font-size:22px;font-weight:800}
+.glass .sub{margin:4px 0 0;color:var(--muted);font-size:13px}
+
+.form{margin-top:26px;display:flex;flex-direction:column;gap:18px}
+.field-float{position:relative}
+.input-float{
+  width:100%;height:54px;padding:20px 14px 6px;border:1px solid var(--border-subtle);border-radius:10px;
+  background:var(--bg);color:var(--foreground);font-size:14px;transition:border-color .15s ease,box-shadow .15s ease;
+}
+.input-float:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(36,81,255,.16);outline:none}
+.field-float label{position:absolute;left:14px;top:17px;font-size:14px;color:var(--muted);pointer-events:none;transition:all .15s ease}
+.input-float:focus + label,.input-float:not(:placeholder-shown) + label{top:7px;font-size:10.5px;font-weight:700;letter-spacing:.03em;color:var(--muted)}
+.input-float:focus + label{color:var(--primary)}
+.field-error{margin-top:5px;font-size:11px;color:var(--error);font-weight:600}
+
+.btn-gradient{
+  margin-top:2px;width:100%;height:46px;border-radius:10px;border:none;cursor:pointer;
+  background:linear-gradient(90deg,var(--primary),var(--primary-hover));color:#fff;font-size:14px;font-weight:700;
+  box-shadow:0 10px 24px -8px rgba(36,81,255,.4);transition:filter .15s ease,transform .06s ease;
+}
+.btn-gradient:hover{filter:brightness(1.1)}
+.btn-gradient:active{transform:scale(.98)}
+.foot-note{margin-top:22px;text-align:center;font-size:11.5px;color:var(--muted)}
+
+/* ---------- Product picker ---------- */
+.picker-head{text-align:center;margin-bottom:6px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+.tile{
+  border:1px solid var(--border-subtle);border-radius:14px;padding:18px 14px;text-align:left;
+  background:var(--surface-raised);display:block;color:var(--foreground);cursor:pointer;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.tile:hover{transform:translateY(-2px);border-color:var(--primary);box-shadow:0 14px 30px -12px rgba(36,81,255,.3);text-decoration:none}
+.tile .t-name{font-weight:800;font-size:14px}
+.tile .t-desc{color:var(--muted);font-size:11px;margin-top:4px;line-height:1.5;min-height:33px}
+.tile.soon{cursor:not-allowed;opacity:.65}
+.tile.soon:hover{transform:none;box-shadow:none;border-color:var(--border-subtle)}
+.soon-tag{display:inline-block;margin-top:10px;font-size:8.5px;font-weight:700;color:var(--muted);border:1px solid var(--border-subtle);padding:2px 7px;border-radius:9px;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<div class="shell" id="app"></div>
+<script>
+__APP_JS__
+</script>
+</body>
+</html>
