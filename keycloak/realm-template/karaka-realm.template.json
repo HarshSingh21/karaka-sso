@@ -263,19 +263,19 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "yZjWyK9ZIR2T6JQeoRWCp9XSSkVaiHv7Eg9dWuW42A8",
+      "secret": "${KARAKA_WEB_SECRET}",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "frontchannelLogout": true,
       "redirectUris": [
-        "http://localhost:8080/login/oauth2/code/keycloak"
+        "${APP_BASE_URL}/login/oauth2/code/keycloak"
       ],
       "webOrigins": [],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:8080/*",
+        "post.logout.redirect.uris": "${APP_BASE_URL}/*",
         "backchannel.logout.session.required": "true"
       },
       "fullScopeAllowed": true,
@@ -314,7 +314,7 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "c2zJV9RfX73IR1fahVAWh6zv368YGlYd1NvLwZKtk",
+      "secret": "${KARAKA_API_SECRET}",
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
@@ -359,7 +359,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "${DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],
@@ -378,7 +378,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "${DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],
@@ -398,7 +398,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "${DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],
@@ -418,7 +418,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "${DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],
@@ -437,7 +437,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "${DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],
@@ -457,7 +457,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "${DEMO_USER_PASSWORD}",
           "temporary": false
         }
       ],

@@ -11,3 +11,10 @@ service/target/
 
 # macOS
 .DS_Store
+
+# Rendered from karaka-realm.template.json by scripts/render-realm.sh.
+# Contains real secrets; the template is what belongs in git.
+# Keycloak's --import-realm reads EVERY *.json here, so the template must live
+# outside it (keycloak/realm-template/) or Keycloak tries to import the
+# placeholders and fails with "redirect URI is not a valid URI".
+keycloak/realm/*.json
