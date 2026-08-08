@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign-in didn't complete — Karaka</title>
+<link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/shared/karaka.css">
+<style>
+/* id is "failed", not "app": #app is the rail+main flex shell in karaka.css. */
+#failed{max-width:560px;margin:0 auto;padding:11vh 24px 40px;text-align:center}
+.mark{width:48px;height:48px;margin:0 auto 18px;border-radius:14px;display:grid;place-items:center;
+  background:var(--warn-wash);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);
+  color:var(--warn);font-size:22px;font-weight:800}
+h1{margin:0 0 8px;font-size:24px;font-weight:800;letter-spacing:-.02em}
+.sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 22px;line-height:1.6}
+.why{text-align:left;padding:16px 18px;border-radius:12px;border:1px solid var(--border);
+  background:var(--surface);box-shadow:var(--shadow-xs);margin-bottom:22px}
+.why-head{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:10px}
+.why ul{margin:0;padding-left:18px;color:var(--ink-soft);font-size:12.5px;line-height:1.8}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.hint{margin-top:20px;font-size:11.5px;color:var(--ink-faint);line-height:1.6}
+</style>
+</head>
+<body>
+<div id="failed">
+  <div class="mark">!</div>
+  <h1 id="title">Sign-in didn't complete</h1>
+  <p class="sub" id="sub">
+    Your password was almost certainly fine. The exchange with Keycloak failed
+    before a session could be created.
+  </p>
+
+  <div class="why">
+    <div class="why-head">Usual causes</div>
+    <ul id="causes">
+      <li>The page was left open across a server or Keycloak restart, so the
+          authorization code no longer matches anything.</li>
+      <li>The login was retried, reloaded, or opened from the back button — a code
+          can only be used once.</li>
+      <li>Cookies in this browser belong to an earlier Keycloak realm.</li>
+    </ul>
+  </div>
+
+  <div class="actions">
+    <!-- Restarts the flow from the beginning: new state, nonce and PKCE challenge. -->
+    <a class="btn btn-primary" href="/oauth2/authorization/keycloak">Try again</a>
+    <a class="btn" href="/">Start over</a>
+  </div>
+
+  <p class="hint">
+    Still failing? Clear cookies for <span class="mono">localhost</span> or open a
+    private window &mdash; that removes any stale Keycloak session cookie, which no
+    amount of retrying can fix on its own.
+  </p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  /* The same page serves two recoverable failures. A rejected CSRF token is not a
+     sign-in problem, so saying "sign-in didn't complete" would send the reader
+     debugging the wrong thing. */
+  if (new URLSearchParams(location.search).get('reason') !== 'stale') return;
+
+  document.getElementById('title').textContent = 'That page was out of date';
+  document.getElementById('sub').textContent =
+    'The request carried a security token that no longer matches this session, so it ' +
+    'was refused before anything happened. Nothing was changed.';
+  document.getElementById('causes').innerHTML =
+    '<li>The page had been open since before the app restarted.</li>' +
+    '<li>You signed in again in another tab, which rotated the session.</li>' +
+    '<li>The action was replayed from the back button or a bookmark.</li>';
+})();
+</script>
+</body>
+</html>

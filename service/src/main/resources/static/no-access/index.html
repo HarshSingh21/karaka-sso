@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No access — Karaka</title>
+<link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/shared/karaka.css">
+<style>
+/* id is "denied", not "app": #app is the rail+main flex shell in karaka.css. */
+#denied{max-width:560px;margin:0 auto;padding:12vh 24px 40px;text-align:center}
+.mark{width:48px;height:48px;margin:0 auto 18px;border-radius:14px;display:grid;place-items:center;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--ink-faint);font-size:22px}
+h1{margin:0 0 8px;font-size:24px;font-weight:800;letter-spacing:-.02em}
+.sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 22px;line-height:1.6}
+.why{text-align:left;padding:16px 18px;border-radius:12px;border:1px solid var(--border);
+  background:var(--surface);box-shadow:var(--shadow-xs);margin-bottom:22px}
+.why-head{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:9px}
+.why-row{display:flex;gap:9px;font-size:12.5px;color:var(--ink-soft);padding:4px 0;align-items:baseline}
+.why-row b{color:var(--ink);font-weight:700}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div id="denied">
+  <div class="mark">&#8709;</div>
+  <h1 id="title">No access</h1>
+  <p class="sub" id="sub">Your account does not have permission for this page.</p>
+
+  <div class="why">
+    <div class="why-head">Why you are seeing this</div>
+    <div class="why-row"><b>Refused</b><span class="mono" id="path">&mdash;</span></div>
+    <div class="why-row"><b>Needs</b><span class="mono" id="needs">an entitlement role</span></div>
+    <div class="why-row"><b>Granted by</b><span id="granted">an administrator, in Keycloak</span></div>
+  </div>
+
+  <div class="actions">
+    <a class="btn btn-primary" href="/picker">Back to products</a>
+    <form method="post" action="/logout" id="out"><button class="btn" type="submit">Sign in as someone else</button></form>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const PRODUCTS = ['ORBIT','AURA','LURA','BURA'];
+
+  /* The handler passes the refused path through, so this page can name the product
+     instead of showing a generic denial. Only a known product code is echoed —
+     rendering an arbitrary query parameter back into the page is how a reflected
+     XSS gets in, and esc() alone is easy to regress. */
+  const raw = new URLSearchParams(location.search).get('path') || '';
+  const code = (raw.split('/').filter(Boolean)[0] || '').toUpperCase();
+  const product = PRODUCTS.includes(code) ? code : null;
+
+  document.getElementById('path').textContent = product ? '/' + product.toLowerCase() : 'this page';
+
+  if (product){
+    document.getElementById('title').textContent = 'No access to ' + product;
+    document.getElementById('sub').innerHTML =
+      'You are signed in, but your account is not entitled to ' + esc(product) +
+      '. Other products may still be open to you.';
+    document.getElementById('needs').textContent = 'PRODUCT_' + product;
+    document.getElementById('granted').innerHTML =
+      'an administrator assigning <span class="mono">' + esc(product) + '_USER</span>, ' +
+      '<span class="mono">' + esc(product) + '_SUBADMIN</span> or ' +
+      '<span class="mono">' + esc(product) + '_ADMIN</span>';
+  }
+
+  /* Spring's logout requires POST plus the CSRF token from the cookie. */
+  const token = document.cookie.split('; ').map(c => c.split('='))
+    .filter(p => p[0] === 'XSRF-TOKEN').map(p => decodeURIComponent(p[1]))[0] || '';
+  const hidden = document.createElement('input');
+  hidden.type = 'hidden'; hidden.name = '_csrf'; hidden.value = token;
+  document.getElementById('out').appendChild(hidden);
+})();
+</script>
+</body>
+</html>

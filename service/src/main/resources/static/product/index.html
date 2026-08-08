@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Karaka</title>
+<link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/shared/karaka.css">
+<style>
+/* Product-page specifics only; shell, buttons, cards, badges and the focus ring
+   all come from /shared/karaka.css. No literal colours here. */
+.cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media (max-width:900px){.cap-grid{grid-template-columns:1fr}}
+.cap-card{padding:16px 17px;border-radius:13px;border:1px solid var(--border);
+  background:var(--surface);box-shadow:var(--shadow-sm)}
+.cap-card.denied{background:var(--surface-2);border-style:dashed}
+.cap-card h3{margin:0 0 3px;font-size:13.5px;font-weight:800;letter-spacing:-.01em;
+  display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cap-role{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;
+  color:var(--ink-faint);margin-bottom:8px}
+.cap-desc{font-size:12px;color:var(--ink-soft);line-height:1.5}
+
+.check-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 0;
+  border-top:1px solid var(--border-soft)}
+.check-row:first-child{border-top:none}
+.check-what{flex:1;min-width:210px}
+.check-name{font-weight:700;font-size:12.5px}
+.check-ep{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;color:var(--ink-faint)}
+.check-out{min-width:280px;flex:2;font-size:11.5px;padding:7px 11px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--ink-soft)}
+.check-out.ok{background:var(--success-wash);color:var(--success);
+  border-color:color-mix(in srgb,var(--success) 26%,transparent)}
+.check-out.no{background:var(--danger-wash);color:var(--danger);
+  border-color:color-mix(in srgb,var(--danger) 26%,transparent)}
+.code{font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:800}
+
+/* Opts #app out of the rail+main flex layout for the centred states. */
+#app.plain{display:block;height:auto;overflow:visible}
+
+.denied-page{max-width:520px;margin:8vh auto;text-align:center}
+.denied-page .glyph{font-size:34px;opacity:.35}
+.denied-page h1{font-size:22px;font-weight:800;margin:10px 0 6px}
+.denied-page p{color:var(--ink-soft);font-size:13px;margin:0 0 18px}
+.state{padding:60px 20px;text-align:center;color:var(--ink-soft)}
+.state .spin{width:26px;height:26px;margin:0 auto 14px;border-radius:50%;
+  border:2.5px solid var(--border);border-top-color:var(--accent);animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.state .spin{animation:none}}
+</style>
+</head>
+<body>
+<div id="app"><div class="state"><div class="spin"></div>Loading&hellip;</div></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* Which product this is comes from the URL: /aura, /orbit, ... All four routes
+     forward to this one file, so the path is the only distinguishing input. */
+  const CODE = (location.pathname.split('/').filter(Boolean)[0] || '').toUpperCase();
+
+  const state = { phase:'loading', session:null, product:null, products:[], checks:{}, error:null };
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const MARKS = {
+    ORBIT:'<g transform="rotate(-28 32 32)"><ellipse cx="32" cy="32" rx="25" ry="11" fill="none" stroke="url(#%ID%)" stroke-width="3.4" class="ring"/><circle cx="57" cy="32" r="4.4" fill="url(#%ID%)"/></g><circle cx="32" cy="32" r="7" fill="url(#%ID%)"/>',
+    AURA:'<path d="M32 7 L37 27 L57 32 L37 37 L32 57 L27 37 L7 32 L27 27 Z" fill="url(#%ID%)"/>',
+    LURA:'<path d="M32 6c-9.4 0-17 7.6-17 17 0 12.5 17 35 17 35s17-22.5 17-35c0-9.4-7.6-17-17-17z" fill="none" stroke="url(#%ID%)" stroke-width="4"/><circle cx="32" cy="23" r="6.5" fill="url(#%ID%)"/>',
+    BURA:'<g fill="none" stroke="url(#%ID%)" stroke-linecap="round"><path d="M32 12c-11 0-20 9-20 20v8" stroke-width="3.4"/><path d="M32 20c-6.6 0-12 5.4-12 12v10" stroke-width="3.4"/><path d="M32 28c-2.2 0-4 1.8-4 4v14" stroke-width="3.4"/><path d="M52 40v-8c0-11-9-20-20-20" stroke-width="3.4"/><path d="M44 42V32c0-6.6-5.4-12-12-12" stroke-width="3.4"/></g>'
+  };
+  function mark(code, size, cls){
+    const id = 'gm-' + code.toLowerCase();
+    return `<svg class="${cls||''}" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true">
+      <defs><linearGradient id="${id}" x1="4" y1="6" x2="60" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2451FF"/><stop offset="1" stop-color="#0F8B8D"/></linearGradient></defs>
+      ${(MARKS[code]||'').replace(/%ID%/g,id)}</svg>`;
+  }
+
+  const cookie = n => document.cookie.split('; ').map(c=>c.split('='))
+    .filter(p=>p[0]===n).map(p=>decodeURIComponent(p[1]))[0] || '';
+
+  async function call(method, url){
+    const headers = { 'Accept':'application/json' };
+    /* Any non-GET needs the CSRF token echoed from the cookie, or the BFF chain
+       rejects it with 403 before authorization is even considered. */
+    if (method !== 'GET') headers['X-XSRF-TOKEN'] = cookie('XSRF-TOKEN');
+    const res = await fetch(url, { method, headers, credentials:'same-origin' });
+    let body = null;
+    try { body = await res.json(); } catch(_) { /* 204 or non-JSON */ }
+    if (res.status === 401){ location.replace('/'); throw new Error('unauthenticated'); }
+    return { status: res.status, ok: res.ok, body };
+  }
+
+  /* --- checks ----------------------------------------------------------- */
+  /* Each row is a real HTTP call against a guarded endpoint. The capability probes
+     exercise @PreAuthorize directly; the ORBIT rows below hit genuine business
+     endpoints, which is the stronger evidence — same authorization, real data. */
+  function checksFor(product){
+    const rows = product.capabilities.map(c => ({
+      key: 'cap:' + c.name,
+      name: c.name + ' capability',
+      role: c.role,
+      method: 'POST',
+      url: `/api/access/probe/${product.code.toLowerCase()}/${c.name.toLowerCase()}`
+    }));
+
+    if (product.code === 'ORBIT'){
+      rows.push(
+        { key:'orbit:list',  name:'List employees',     role:'ORBIT_VIEW',   method:'GET',  url:'/api/employees' },
+        { key:'orbit:audit', name:'Read audit trail',   role:'ORBIT_AUDIT',  method:'GET',  url:'/api/audit?limit=5' },
+        { key:'orbit:write', name:'Create employee',    role:'ORBIT_MANAGE', method:'POST', url:'/api/employees' }
+      );
+    }
+    return rows;
+  }
+
+  const app = {
+    async load(){
+      try {
+        const [sRes, cRes] = await Promise.all([ call('GET','/api/session'), call('GET','/api/access/catalogue') ]);
+        if (!sRes.ok || !cRes.ok) throw new Error('HTTP ' + (sRes.status || cRes.status));
+        state.session = sRes.body;
+        state.products = cRes.body.products;
+        state.product = cRes.body.products.find(p => p.code === CODE) || null;
+        state.phase = state.product ? 'ready' : 'unknown';
+      } catch(e){
+        if (e.message === 'unauthenticated') return;
+        state.error = e.message; state.phase = 'error';
+      }
+      render();
+    },
+
+    async run(key){
+      const row = checksFor(state.product).find(r => r.key === key);
+      if (!row) return;
+      state.checks[key] = { pending:true };
+      render();
+      try {
+        const r = await call(row.method, row.url);
+        /* A 400 on the create probe means authorization PASSED and validation then
+           rejected the empty body — that is a success for this demo, and reporting
+           it as a failure would be actively misleading. */
+        const authPassed = r.status !== 403;
+        state.checks[key] = {
+          status: r.status,
+          allowed: authPassed,
+          text: authPassed
+            ? (r.body && r.body.message) ? r.body.message
+              : (r.status === 400 ? 'Allowed by ' + row.role + ' — then rejected by validation, which is the expected 400 for an empty body.'
+                                  : 'Allowed by ' + row.role + '.')
+            : (r.body && (r.body.detail || r.body.title)) || 'Forbidden'
+        };
+      } catch(e){
+        if (e.message === 'unauthenticated') return;
+        state.checks[key] = { status:0, allowed:false, text:e.message };
+      }
+      render();
+    },
+
+    async runAll(){
+      for (const row of checksFor(state.product)) { await app.run(row.key); }
+    },
+
+    toggleTheme(){
+      const root = document.documentElement;
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('karaka-theme', next); } catch(_) {}
+      render();
+    }
+  };
+  window.app = app;
+
+  /* --- views ------------------------------------------------------------ */
+  function rail(){
+    const p = state.product, s = state.session;
+    const others = state.products.map(o => o.code === CODE ? '' :
+      (o.entitled
+        ? `<a class="rail-link" href="${esc(o.path)}"><span class="ic">&rsaquo;</span>${esc(o.code)}</a>`
+        : `<div class="rail-soon" title="You do not hold ${esc('PRODUCT_' + o.code)}">${esc(o.code)}<span class="rail-soon-tag">LOCKED</span></div>`)
+    ).join('');
+
+    return `<aside class="rail">
+      <div class="rail-brand">
+        <div class="rail-mark-wrap">
+          <div class="rail-mark-glow"></div>
+          ${mark(p.code, 34, 'rail-mark')}
+        </div>
+        <div>
+          <div class="rail-name">${esc(p.code)}</div>
+          <div class="rail-sub">${esc(p.title)}</div>
+        </div>
+      </div>
+
+      <div class="rail-label">This product</div>
+      <div class="rail-nav">
+        <div class="rail-link active"><span class="ic">&#9673;</span>Access &amp; checks</div>
+      </div>
+
+      <div class="rail-label">Suite</div>
+      <div class="rail-nav">
+        <a class="rail-link" href="/picker"><span class="ic">&#9632;</span>All products</a>
+        ${others}
+      </div>
+
+      <div class="rail-foot">
+        <button class="theme-btn" onclick="app.toggleTheme()">
+          <span>&#9682;</span> Toggle theme
+        </button>
+        <div class="rail-org">
+          <div class="rail-org-badge">${esc(s.initials)}</div>
+          <div>
+            <div class="rail-org-name">${esc(s.displayName)}</div>
+            <div class="rail-org-meta">${esc(s.tenant)} &middot; ${s.roles.length} role${s.roles.length===1?'':'s'}</div>
+          </div>
+        </div>
+        <form method="post" action="/logout" style="margin-top:8px">
+          <input type="hidden" name="_csrf" value="${esc(cookie('XSRF-TOKEN'))}">
+          <button class="btn btn-sm" type="submit" style="width:100%">Sign out</button>
+        </form>
+      </div>
+    </aside>`;
+  }
+
+  function capCards(p){
+    return `<div class="cap-grid">${p.capabilities.map(c => `
+      <div class="cap-card ${c.granted ? '' : 'denied'}">
+        <h3>${esc(c.name)}
+          <span class="badge ${c.granted ? 'b-active' : 'b-exited'}"><span class="dot"></span>${c.granted ? 'granted' : 'withheld'}</span>
+        </h3>
+        <div class="cap-role">${esc(c.role)}</div>
+        <div class="cap-desc">${esc(c.description)}</div>
+      </div>`).join('')}</div>`;
+  }
+
+  function checkRows(p){
+    return checksFor(p).map(row => {
+      const r = state.checks[row.key];
+      let out = '<div class="check-out">not run yet</div>';
+      if (r && r.pending) out = '<div class="check-out">checking&hellip;</div>';
+      else if (r) out = `<div class="check-out ${r.allowed ? 'ok' : 'no'}">
+          <span class="code">${r.status}</span> &middot; ${esc(r.text)}</div>`;
+
+      return `<div class="check-row">
+        <div class="check-what">
+          <div class="check-name">${esc(row.name)}</div>
+          <div class="check-ep">${esc(row.method)} ${esc(row.url)} &middot; needs ${esc(row.role)}</div>
+        </div>
+        ${out}
+        <button class="btn btn-sm" onclick="app.run('${esc(row.key)}')">Run</button>
+      </div>`;
+    }).join('');
+  }
+
+  function readyView(){
+    const p = state.product, s = state.session;
+
+    /* Entitlement is enforced server-side as well: this path is guarded by
+       hasRole('PRODUCT_<CODE>'), so an un-entitled user is redirected before this
+       renders. The branch stays for defence in depth and for a clear message. */
+    if (!p.entitled) return deniedView();
+
+    return `${rail()}
+      <div class="main">
+        <div class="topbar"><div class="topbar-title">${esc(p.code)} &middot; ${esc(p.title)}</div></div>
+        <div class="content"><div class="content-inner">
+
+          <div class="page-head hero">
+            <div>
+              <h1 class="page-title">Your access to ${esc(p.code)}</h1>
+              <div class="page-sub">${esc(p.description)} &mdash; signed in as ${esc(s.displayName)}</div>
+            </div>
+            <button class="btn btn-primary" onclick="app.runAll()">Run all checks</button>
+          </div>
+
+          ${capCards(p)}
+
+          <div class="card" style="margin-top:18px">
+            <div class="card-head"><h3>Live authorization checks</h3>
+              <span class="page-sub" style="margin:0">every row is a real request &mdash; Keycloak roles decide the outcome</span>
+            </div>
+            <div style="padding:6px 20px 16px">${checkRows(p)}</div>
+          </div>
+
+          <div class="notice" style="margin-top:18px">
+            <span>&#9432;</span>
+            <span>Withheld capabilities are hidden in the UI <em>and</em> refused by the server.
+            The 403 you get from a withheld row comes from Spring Security acting on the
+            roles in your Keycloak token &mdash; the browser never decides this.</span>
+          </div>
+
+        </div></div>
+      </div>`;
+  }
+
+  function deniedView(){
+    return `<div class="denied-page">
+      <div class="glyph">&#8709;</div>
+      <h1>No access to ${esc(CODE)}</h1>
+      <p>Your account does not hold <span class="mono">PRODUCT_${esc(CODE)}</span>.
+         An administrator grants this in Keycloak by assigning a
+         <span class="mono">${esc(CODE)}_USER</span>, <span class="mono">${esc(CODE)}_SUBADMIN</span>
+         or <span class="mono">${esc(CODE)}_ADMIN</span> tier.</p>
+      <a class="btn btn-primary" href="/picker">Back to products</a>
+    </div>`;
+  }
+
+  function render(){
+    const root = document.getElementById('app');
+    /* #app carries the rail+main flex layout from karaka.css. The centred states
+       (loading, denied) must opt out of it, hence the class rather than a wrapper
+       element — a wrapper would need its own id and end up duplicating #app. */
+    const centred = state.phase !== 'ready' || !state.product || !state.product.entitled;
+    root.classList.toggle('plain', centred);
+
+    if (state.phase === 'loading'){
+      root.innerHTML = `<div class="state"><div class="spin"></div>Loading&hellip;</div>`;
+    } else if (state.phase === 'error'){
+      root.innerHTML = `<div class="state">Could not load access.<br><span class="mono">${esc(state.error)}</span></div>`;
+    } else if (state.phase === 'unknown'){
+      root.innerHTML = `<div class="denied-page"><div class="glyph">&#8709;</div>
+        <h1>Unknown product</h1><p><span class="mono">${esc(CODE)}</span> is not part of the suite.</p>
+        <a class="btn btn-primary" href="/picker">Back to products</a></div>`;
+    } else {
+      root.innerHTML = readyView();
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem('karaka-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  } catch(_) {}
+
+  app.load();
+})();
+</script>
+</body>
+</html>

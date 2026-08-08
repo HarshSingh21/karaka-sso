@@ -1,0 +1,284 @@
+{
+  "realm": "karaka",
+  "displayName": "Opal",
+  "enabled": true,
+  "loginTheme": "karaka",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 10,
+  "waitIncrementSeconds": 60,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      { "name": "PRODUCT_ORBIT", "description": "Entitlement: may enter ORBIT." },
+      { "name": "PRODUCT_AURA", "description": "Entitlement: may enter AURA." },
+      { "name": "PRODUCT_LURA", "description": "Entitlement: may enter LURA." },
+      { "name": "PRODUCT_BURA", "description": "Entitlement: may enter BURA." },
+
+      { "name": "ORBIT_VIEW", "description": "Capability: read the employee register." },
+      { "name": "ORBIT_MANAGE", "description": "Capability: create, edit, transfer and exit employees." },
+      { "name": "ORBIT_AUDIT", "description": "Capability: read the audit trail (who changed what)." },
+
+      { "name": "AURA_VIEW", "description": "Capability: read ledgers, journals and balances." },
+      { "name": "AURA_POST", "description": "Capability: post and reverse journal entries." },
+      { "name": "AURA_CLOSE", "description": "Capability: reconcile accounts and close a period. Irreversible." },
+
+      { "name": "LURA_VIEW", "description": "Capability: read sites, geofences and visit history." },
+      { "name": "LURA_MANAGE", "description": "Capability: create and edit sites and geofences." },
+      { "name": "LURA_TRACK", "description": "Capability: see live field movement of named people." },
+
+      { "name": "BURA_VIEW", "description": "Capability: read devices, punches and shift records." },
+      { "name": "BURA_MANAGE", "description": "Capability: enrol devices and assign shifts." },
+      { "name": "BURA_ADJUST", "description": "Capability: correct or void a biometric punch. Always audited." },
+
+      {
+        "name": "ORBIT_USER",
+        "description": "Tier: read-only directory access.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_ORBIT", "ORBIT_VIEW"] }
+      },
+      {
+        "name": "ORBIT_SUBADMIN",
+        "description": "Tier: maintains employee records, but cannot read the audit trail.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_ORBIT", "ORBIT_VIEW", "ORBIT_MANAGE"] }
+      },
+      {
+        "name": "ORBIT_ADMIN",
+        "description": "Tier: full ORBIT control including the audit trail.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_ORBIT", "ORBIT_VIEW", "ORBIT_MANAGE", "ORBIT_AUDIT"] }
+      },
+
+      {
+        "name": "AURA_USER",
+        "description": "Tier: read-only books.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_AURA", "AURA_VIEW"] }
+      },
+      {
+        "name": "AURA_SUBADMIN",
+        "description": "Tier: posts journals, but cannot close a period.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_AURA", "AURA_VIEW", "AURA_POST"] }
+      },
+      {
+        "name": "AURA_ADMIN",
+        "description": "Tier: full AURA control including period close.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_AURA", "AURA_VIEW", "AURA_POST", "AURA_CLOSE"] }
+      },
+
+      {
+        "name": "LURA_USER",
+        "description": "Tier: read-only sites and visit history, no live tracking.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_LURA", "LURA_VIEW"] }
+      },
+      {
+        "name": "LURA_SUBADMIN",
+        "description": "Tier: maintains sites and geofences.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_LURA", "LURA_VIEW", "LURA_MANAGE"] }
+      },
+      {
+        "name": "LURA_ADMIN",
+        "description": "Tier: full LURA control including live tracking of named people.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_LURA", "LURA_VIEW", "LURA_MANAGE", "LURA_TRACK"] }
+      },
+
+      {
+        "name": "BURA_USER",
+        "description": "Tier: read-only attendance.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_BURA", "BURA_VIEW"] }
+      },
+      {
+        "name": "BURA_SUBADMIN",
+        "description": "Tier: enrols devices and assigns shifts, but cannot alter a punch.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_BURA", "BURA_VIEW", "BURA_MANAGE"] }
+      },
+      {
+        "name": "BURA_ADMIN",
+        "description": "Tier: full BURA control including punch correction.",
+        "composite": true,
+        "composites": { "realm": ["PRODUCT_BURA", "BURA_VIEW", "BURA_MANAGE", "BURA_ADJUST"] }
+      },
+
+      {
+        "name": "KARAKA_ADMIN",
+        "description": "Suite tier: admin of every product. Leaf roles are listed explicitly rather than nesting the per-product admin tiers, so this role's true reach is readable in one place.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "PRODUCT_ORBIT", "ORBIT_VIEW", "ORBIT_MANAGE", "ORBIT_AUDIT",
+            "PRODUCT_AURA", "AURA_VIEW", "AURA_POST", "AURA_CLOSE",
+            "PRODUCT_LURA", "LURA_VIEW", "LURA_MANAGE", "LURA_TRACK",
+            "PRODUCT_BURA", "BURA_VIEW", "BURA_MANAGE", "BURA_ADJUST"
+          ]
+        }
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "karaka-web",
+      "name": "Karaka web (Spring BFF)",
+      "description": "Backend-for-frontend for the browser UIs. Confidential: the secret and every token stay server-side, and the browser holds only a session cookie.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-only-bff-secret-2f7a91c4",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "redirectUris": ["http://localhost:8080/login/oauth2/code/keycloak"],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/*",
+        "backchannel.logout.session.required": "true"
+      },
+      "fullScopeAllowed": true,
+      "defaultClientScopes": ["profile", "email", "roles", "web-origins", "acr", "basic"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "realm roles in id token",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "karaka-api",
+      "name": "Karaka API (machine callers)",
+      "description": "For callers with no browser: biometric terminals, mobile apps, payroll integrations, and Postman. Service accounts use client_credentials; directAccessGrants exists only so a token can be fetched by hand during development.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dev-only-api-secret-9c4f1a7b",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "fullScopeAllowed": false,
+      "defaultClientScopes": ["profile", "email", "roles", "acr", "basic"],
+      "optionalClientScopes": []
+    }
+  ],
+
+  "scopeMappings": [
+    {
+      "client": "karaka-api",
+      "roles": [
+        "PRODUCT_ORBIT", "ORBIT_VIEW", "ORBIT_MANAGE", "ORBIT_AUDIT",
+        "PRODUCT_BURA", "BURA_VIEW", "BURA_MANAGE", "BURA_ADJUST"
+      ]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "ankit",
+      "email": "ankit@opal.example",
+      "firstName": "Ankit",
+      "lastName": "Sharma",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "karaka123", "temporary": false }],
+      "realmRoles": ["KARAKA_ADMIN"]
+    },
+    {
+      "username": "harsh",
+      "email": "harsh@opal.example",
+      "firstName": "Harsh",
+      "lastName": "Singh",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "karaka123", "temporary": false }],
+      "realmRoles": ["ORBIT_SUBADMIN", "AURA_ADMIN"]
+    },
+    {
+      "username": "meera",
+      "email": "meera@opal.example",
+      "firstName": "Meera",
+      "lastName": "Iyer",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "karaka123", "temporary": false }],
+      "realmRoles": ["ORBIT_USER", "AURA_SUBADMIN"]
+    },
+    {
+      "username": "monti",
+      "email": "monti@opal.example",
+      "firstName": "Monti",
+      "lastName": "Verma",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "karaka123", "temporary": false }],
+      "realmRoles": ["AURA_USER"]
+    },
+    {
+      "username": "farhan",
+      "email": "farhan@opal.example",
+      "firstName": "Farhan",
+      "lastName": "Qureshi",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "karaka123", "temporary": false }],
+      "realmRoles": ["LURA_USER", "BURA_USER"]
+    },
+    {
+      "username": "priya",
+      "email": "priya@opal.example",
+      "firstName": "Priya",
+      "lastName": "Kulkarni",
+      "enabled": true,
+      "emailVerified": true,
+      "requiredActions": [],
+      "credentials": [{ "type": "password", "value": "karaka123", "temporary": false }],
+      "realmRoles": []
+    },
+    {
+      "username": "service-account-karaka-api",
+      "enabled": true,
+      "serviceAccountClientId": "karaka-api",
+      "realmRoles": ["ORBIT_VIEW", "BURA_VIEW", "BURA_MANAGE"]
+    }
+  ]
+}

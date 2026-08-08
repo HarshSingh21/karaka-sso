@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose a product — Karaka</title>
+<link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/shared/karaka.css">
+<style>
+/* Picker-specific only. Tokens, buttons, cards and the focus ring all come from
+   /shared/karaka.css — nothing here re-declares a colour literally. */
+body{min-height:100vh;display:flex;flex-direction:column;background:var(--bg)}
+
+/* Ambient wash behind the header. One bold moment per page, spent here. */
+.page{position:relative;flex:1;width:100%;max-width:1120px;margin:0 auto;padding:44px 24px 56px}
+.page::before{
+  content:'';position:absolute;top:-90px;left:50%;transform:translateX(-50%);
+  width:820px;height:340px;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at center,
+    color-mix(in srgb,var(--accent) 13%,transparent),
+    color-mix(in srgb,var(--info) 7%,transparent) 55%,transparent 72%);
+}
+.page > *{position:relative;z-index:1}
+
+.brand-row{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:8px}
+.brand-lockup{display:flex;align-items:center;gap:10px}
+.brand-mark{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent),var(--info));
+  box-shadow:0 8px 20px -6px color-mix(in srgb,var(--accent) 45%,transparent)}
+.brand-name{font-weight:800;font-size:20px;letter-spacing:-.02em}
+
+.lede{text-align:center;margin:26px 0 30px}
+.lede h1{margin:0;font-size:27px;font-weight:800;letter-spacing:-.025em}
+.lede p{margin:6px 0 0;color:var(--ink-soft);font-size:13px}
+
+/* Tiles ------------------------------------------------------------------ */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:1000px){.tiles{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.tiles{grid-template-columns:1fr}}
+
+.tile{display:flex;flex-direction:column;gap:11px;padding:18px 17px 16px;border-radius:14px;
+  border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow-sm);
+  color:var(--ink);text-decoration:none;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+a.tile:hover{transform:translateY(-2px);border-color:var(--accent);
+  box-shadow:var(--shadow-hover);text-decoration:none}
+/* Locked: dimmed and inert. Still rendered, so a user can see the product exists
+   and that access is something they could ask for. */
+.tile.locked{opacity:.6;cursor:not-allowed;background:var(--surface-2)}
+.tile-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.tile-name{font-weight:800;font-size:15px;letter-spacing:-.01em}
+.tile-title{color:var(--ink-soft);font-size:11.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.tile-desc{color:var(--ink-soft);font-size:12px;line-height:1.5;flex:1}
+.lock-tag{flex:none;font-size:8.5px;font-weight:800;letter-spacing:.06em;
+  color:var(--ink-faint);border:1px solid var(--border);background:var(--surface-3);
+  padding:3px 7px;border-radius:9px;white-space:nowrap}
+
+/* Capability chips: granted vs withheld, shown side by side on purpose so the
+   tier model is legible at a glance rather than only in Keycloak's admin UI. */
+.caps{display:flex;flex-wrap:wrap;gap:5px;padding-top:3px;border-top:1px solid var(--border-soft)}
+.cap{font-size:9.5px;font-weight:800;letter-spacing:.04em;padding:3px 7px;border-radius:99px;
+  border:1px solid transparent}
+.cap.on{background:var(--success-wash);color:var(--success);
+  border-color:color-mix(in srgb,var(--success) 26%,transparent)}
+.cap.off{background:var(--surface-2);color:var(--ink-faint);border-color:var(--border);
+  text-decoration:line-through}
+
+/* Identity ------------------------------------------------------------------ */
+.who{display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-top:26px;
+  padding:14px 16px;border-radius:13px;border:1px solid var(--border);
+  background:var(--surface);box-shadow:var(--shadow-xs)}
+.who-av{width:38px;height:38px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-weight:800;font-size:13px;color:#fff;
+  background:linear-gradient(135deg,var(--accent),var(--info))}
+.who-name{font-weight:700;font-size:13.5px}
+.who-mail{color:var(--ink-soft);font-size:11.5px}
+.who-spacer{flex:1}
+
+.roles{margin-top:16px}
+.roles-head{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:8px}
+.role-list{display:flex;flex-wrap:wrap;gap:6px}
+.role{font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',ui-monospace,monospace;
+  padding:4px 9px;border-radius:7px;background:var(--surface-2);
+  border:1px solid var(--border);color:var(--ink-soft)}
+/* Tier roles are what an administrator assigns; capabilities are what code checks.
+   Distinguishing them here is the whole point of the model. */
+.role.tier{background:var(--accent-wash);border-color:color-mix(in srgb,var(--accent) 30%,transparent);
+  color:var(--accent);font-weight:800}
+
+.state{text-align:center;padding:60px 20px;color:var(--ink-soft)}
+.state .spin{width:26px;height:26px;margin:0 auto 14px;border-radius:50%;
+  border:2.5px solid var(--border);border-top-color:var(--accent);animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.state .spin{animation:none}}
+.err{max-width:440px;margin:0 auto;padding:16px;border-radius:12px;
+  background:var(--danger-wash);border:1px solid var(--danger);color:var(--danger);font-size:12.5px}
+</style>
+</head>
+<body>
+<!-- id must NOT be "app": karaka.css styles #app as the rail+main flex shell
+     (display:flex;height:100vh), which would lay this page's sections out as
+     side-by-side columns instead of stacking them. -->
+<div class="page" id="picker"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* House pattern: a `state` object, an `app` of actions that mutate it then
+     re-render, and view functions returning HTML strings. */
+  const state = { phase:'loading', session:null, catalogue:null, error:null };
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* Each product gets its own mark. Gradient ids must be unique per document or
+     the last definition silently wins for every SVG that reuses the id. */
+  const MARKS = {
+    ORBIT: '<g transform="rotate(-28 32 32)"><ellipse cx="32" cy="32" rx="25" ry="11" fill="none" stroke="url(#%ID%)" stroke-width="3.4"/><circle cx="57" cy="32" r="4.4" fill="url(#%ID%)"/></g><circle cx="32" cy="32" r="7" fill="url(#%ID%)"/>',
+    AURA:  '<path d="M32 7 L37 27 L57 32 L37 37 L32 57 L27 37 L7 32 L27 27 Z" fill="url(#%ID%)"/>',
+    LURA:  '<path d="M32 6c-9.4 0-17 7.6-17 17 0 12.5 17 35 17 35s17-22.5 17-35c0-9.4-7.6-17-17-17z" fill="none" stroke="url(#%ID%)" stroke-width="4"/><circle cx="32" cy="23" r="6.5" fill="url(#%ID%)"/>',
+    BURA:  '<g fill="none" stroke="url(#%ID%)" stroke-linecap="round"><path d="M32 12c-11 0-20 9-20 20v8" stroke-width="3.4"/><path d="M32 20c-6.6 0-12 5.4-12 12v10" stroke-width="3.4"/><path d="M32 28c-2.2 0-4 1.8-4 4v14" stroke-width="3.4"/><path d="M52 40v-8c0-11-9-20-20-20" stroke-width="3.4"/><path d="M44 42V32c0-6.6-5.4-12-12-12" stroke-width="3.4"/></g>',
+    SUITE: '<path d="M14 32 L24 14 L34 32" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14" cy="32" r="5" fill="#fff"/><circle cx="34" cy="32" r="5" fill="#fff"/><circle cx="24" cy="14" r="5" fill="#fff"/>'
+  };
+
+  function mark(code, size){
+    const id = 'g-' + code.toLowerCase();
+    const body = (MARKS[code] || '').replace(/%ID%/g, id);
+    return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true">
+      <defs><linearGradient id="${id}" x1="4" y1="6" x2="60" y2="58" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#2451FF"/><stop offset="1" stop-color="#0F8B8D"/>
+      </linearGradient></defs>${body}</svg>`;
+  }
+
+  function suiteMark(){
+    return `<svg width="21" height="21" viewBox="0 0 48 48" aria-hidden="true">${MARKS.SUITE}</svg>`;
+  }
+
+  /* --- data ------------------------------------------------------------- */
+  function cookie(name){
+    return document.cookie.split('; ')
+      .map(c => c.split('='))
+      .filter(p => p[0] === name)
+      .map(p => decodeURIComponent(p[1]))[0] || '';
+  }
+
+  async function getJson(url){
+    const res = await fetch(url, { credentials:'same-origin', headers:{ 'Accept':'application/json' } });
+    /* 401 means the session expired. replace() rather than assign() so the dead
+       page leaves no entry in history to go "back" to. */
+    if (res.status === 401){ location.replace('/'); throw new Error('unauthenticated'); }
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' from ' + url);
+    return res.json();
+  }
+
+  const app = {
+    async load(){
+      try {
+        const [session, catalogue] = await Promise.all([
+          getJson('/api/session'), getJson('/api/access/catalogue')
+        ]);
+        state.session = session; state.catalogue = catalogue; state.phase = 'ready';
+      } catch (e) {
+        if (e.message === 'unauthenticated') return;
+        state.error = e.message; state.phase = 'error';
+      }
+      render();
+    },
+    retry(){ state.phase = 'loading'; state.error = null; render(); app.load(); }
+  };
+  window.app = app;
+
+  /* --- views ------------------------------------------------------------ */
+  function brand(tenant){
+    return `<div class="brand-row">
+      <div class="brand-lockup">
+        <div class="brand-mark">${suiteMark()}</div>
+        <div class="brand-name">KARAKA</div>
+      </div>
+      <div class="org-tag">${esc(tenant)}</div>
+    </div>`;
+  }
+
+  function tileView(p){
+    const caps = p.capabilities.map(c =>
+      `<span class="cap ${c.granted ? 'on' : 'off'}" title="${esc(c.role)} — ${esc(c.description)}">${esc(c.name)}</span>`
+    ).join('');
+
+    const inner = `
+      <div class="tile-top">
+        <div>
+          ${mark(p.code, 30)}
+          <div class="tile-name" style="margin-top:8px">${esc(p.code)}</div>
+          <div class="tile-title">${esc(p.title)}</div>
+        </div>
+        ${p.entitled ? '' : '<span class="lock-tag">NO ACCESS</span>'}
+      </div>
+      <div class="tile-desc">${esc(p.description)}</div>
+      <div class="caps">${caps}</div>`;
+
+    /* Entitled products are real links; the rest are inert divs kept out of the
+       tab order, since there is nothing to activate. */
+    return p.entitled
+      ? `<a class="tile" href="${esc(p.path)}">${inner}</a>`
+      : `<div class="tile locked" aria-disabled="true">${inner}</div>`;
+  }
+
+  function rolesView(roles){
+    if (!roles.length) return `<div class="role-list"><span class="role">no roles assigned</span></div>`;
+    /* Tier roles read as <PRODUCT>_USER|SUBADMIN|ADMIN, or KARAKA_ADMIN. */
+    const isTier = r => /_(USER|SUBADMIN|ADMIN)$/.test(r);
+    return `<div class="role-list">${
+      roles.map(r => `<span class="role ${isTier(r) ? 'tier' : ''}">${esc(r)}</span>`).join('')
+    }</div>`;
+  }
+
+  function readyView(){
+    const s = state.session, c = state.catalogue;
+    const open = c.products.filter(p => p.entitled).length;
+
+    return `${brand(c.tenant)}
+      <div class="lede">
+        <h1>Choose where to go</h1>
+        <p>Signed in as ${esc(s.displayName)} &middot;
+           ${open} of ${c.products.length} product${c.products.length === 1 ? '' : 's'} available to you</p>
+      </div>
+
+      <div class="tiles">${c.products.map(tileView).join('')}</div>
+
+      <div class="who">
+        <div class="who-av">${esc(s.initials)}</div>
+        <div>
+          <div class="who-name">${esc(s.displayName)}</div>
+          <div class="who-mail">${esc(s.email || s.username)} &middot; ${esc(c.tenant)}</div>
+        </div>
+        <div class="who-spacer"></div>
+        <form method="post" action="/logout">
+          <input type="hidden" name="_csrf" value="${esc(cookie('XSRF-TOKEN'))}">
+          <button class="btn" type="submit">Sign out</button>
+        </form>
+      </div>
+
+      <div class="roles">
+        <div class="roles-head">Realm roles from Keycloak &mdash; highlighted ones are assigned tiers, the rest are the capabilities they expand to</div>
+        ${rolesView(s.roles)}
+      </div>`;
+  }
+
+  function render(){
+    const root = document.getElementById('picker');
+    if (state.phase === 'loading'){
+      root.innerHTML = `<div class="state"><div class="spin"></div>Loading your access&hellip;</div>`;
+    } else if (state.phase === 'error'){
+      root.innerHTML = `<div class="state"><div class="err" role="alert">
+          Could not load your access.<br><span class="mono">${esc(state.error)}</span>
+        </div>
+        <p style="margin-top:16px"><button class="btn" onclick="app.retry()">Try again</button></p></div>`;
+    } else {
+      root.innerHTML = readyView();
+    }
+  }
+
+  render();
+  app.load();
+})();
+</script>
+</body>
+</html>

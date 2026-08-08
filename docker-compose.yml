@@ -1,0 +1,66 @@
+# =============================================================================
+# Karaka — identity infrastructure
+#
+#   db        Postgres — Keycloak's persistence
+#   keycloak  identity provider, dev mode, realm + theme auto-loaded
+#             -> http://localhost:8081   (admin console: /admin)
+#
+# The Spring Boot service (service/) runs on :8080 and is NOT in this file —
+# run it with `./mvnw spring-boot:run` so you keep hot restart and a debugger.
+# It is the OAuth2 *client*; Keycloak is the authorization server.
+# =============================================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: karaka-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # Keycloak fails hard if the DB is not accepting connections at boot,
+      # so gate its start on this rather than a bare `depends_on`.
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    container_name: karaka-keycloak
+    # start-dev: no TLS, relaxed hostname checks, and theme caching disabled —
+    # edits under keycloak/themes/ appear on a browser reload with no restart.
+    # NOT production. See README.md § Before this goes anywhere shared.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: db
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # Renamed in Keycloak 26; the old KEYCLOAK_ADMIN pair still works but is
+      # deprecated. These seed the admin only on first boot against an empty DB.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?set KC_ADMIN_PASSWORD in .env}
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    ports:
+      - "8081:8080"
+      - "9000:9000"   # management port: /health/ready, /metrics
+    volumes:
+      # Theme is mounted, not baked — no image rebuild while iterating on CSS.
+      - ./keycloak/themes/karaka:/opt/keycloak/themes/karaka:ro
+      # --import-realm reads every *.json here, but ONLY when the realm does
+      # not already exist. Re-importing after edits needs `down -v`.
+      - ./keycloak/realm:/opt/keycloak/data/import:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  db-data:

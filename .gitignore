@@ -1,0 +1,13 @@
+# Secrets — the committed template is .env.example
+.env
+
+# Maven
+service/target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# macOS
+.DS_Store

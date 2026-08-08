@@ -1,0 +1,86 @@
+server:
+  port: 8080
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        name: KARAKA_SESSION
+        # The point of the BFF: the browser holds this and nothing else.
+        # HttpOnly keeps JavaScript — and therefore XSS — away from it.
+        http-only: true
+        # Lax, not Strict. The redirect back from Keycloak is a cross-site
+        # top-level GET; Strict would drop the cookie on it, lose the
+        # authorization-request state, and fail every single login.
+        same-site: lax
+        # Local dev is plain http. Set KARAKA_COOKIE_SECURE=true behind TLS.
+        secure: ${KARAKA_COOKIE_SECURE:false}
+
+spring:
+  application:
+    name: karaka-service
+  main:
+    banner-mode: off
+  security:
+    oauth2:
+      # --- Browser side (BFF): this service is an OAuth2 *client* ---
+      client:
+        provider:
+          keycloak:
+            # Resolved to the discovery document at startup, so Keycloak must
+            # already be reachable when the service boots:
+            #   docker compose up -d   then   ./mvnw spring-boot:run
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/karaka}
+        registration:
+          keycloak:
+            provider: keycloak
+            client-id: karaka-web
+            # Confidential client. Must match clients[].secret for karaka-web in
+            # keycloak/realm/karaka-realm.json.
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:dev-only-bff-secret-2f7a91c4}
+            authorization-grant-type: authorization_code
+            # `roles` is a Keycloak default client scope, so realm roles arrive
+            # without being requested here.
+            scope: openid,profile,email
+
+      # --- Machine side: this service is also a *resource server* ---
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/karaka}
+          # Explicit, though issuer-uri alone would discover it. Named here
+          # because this is the URL to check first when tokens start failing
+          # validation — the keys are fetched and cached from it.
+          jwk-set-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/karaka}/protocol/openid-connect/certs
+
+  web:
+    resources:
+      cache:
+        # Dev: never cache the static apps, or you debug a stale file.
+        period: 0
+  mvc:
+    problemdetails:
+      # RFC 9457 for framework-raised errors too, so the API has one error
+      # shape rather than two.
+      enabled: true
+
+karaka:
+  jwt:
+    # Which client's roles JwtConverter reads out of resource_access.
+    # Must match a clientId in the realm, or client roles are silently ignored.
+    resource-id: karaka-api
+    # Claim used as the principal name. Falls back to `sub` when absent.
+    principal-attribute: preferred_username
+  tenant:
+    # Rendered as the .org-tag beside the Karaka wordmark. One realm per tenant
+    # is the scaling path — see docs/AUTH.md § Multi-tenancy.
+    name: Opal
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.karaka: DEBUG
+    org.springframework.security: INFO
