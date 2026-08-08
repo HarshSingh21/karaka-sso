@@ -56,6 +56,12 @@ services:
       - ./keycloak/themes/karaka:/opt/keycloak/themes/karaka:ro
       # --import-realm reads every *.json here, but ONLY when the realm does
       # not already exist. Re-importing after edits needs `down -v`.
+      #
+      # The directory is EMPTY in a fresh clone: the template lives in
+      # keycloak/realm-template/ (outside this mount, or Keycloak would try to
+      # import its placeholders),
+      # because the realm carries client secrets and demo passwords. Run
+      # `scripts/render-realm.sh` first or Keycloak starts with no realm at all.
       - ./keycloak/realm:/opt/keycloak/data/import:ro
     depends_on:
       db:

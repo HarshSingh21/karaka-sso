@@ -27,8 +27,16 @@ docker compose up -d          # Keycloak + Postgres; realm and theme auto-import
 cd service && ./mvnw spring-boot:run
 ```
 
-Open <http://localhost:8080/> and sign in. Every demo account uses the password
-`karaka123`.
+Render the realm first, then open <http://localhost:8080/> and sign in:
+
+```bash
+cp .env.example .env          # fill in the secrets
+./scripts/render-realm.sh     # writes the gitignored realm file
+docker compose up -d
+```
+
+Every demo account uses whatever you set as `DEMO_USER_PASSWORD`. The realm file
+holds no credentials in git — see [docs/DEPLOY.md](docs/DEPLOY.md).
 
 > Keycloak must be reachable **before** the service starts — Spring resolves the OIDC
 > discovery document at boot. `docker compose up -d` first, then the service.

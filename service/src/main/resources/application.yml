@@ -36,7 +36,9 @@ spring:
             client-id: karaka-web
             # Confidential client. Must match clients[].secret for karaka-web in
             # keycloak/realm/karaka-realm.json.
-            client-secret: ${KEYCLOAK_CLIENT_SECRET:dev-only-bff-secret-2f7a91c4}
+            # No default. A fallback here means a deploy that forgets the
+            # variable starts successfully on a secret from git history.
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
             authorization-grant-type: authorization_code
             # `roles` is a Keycloak default client scope, so realm roles arrive
             # without being requested here.
