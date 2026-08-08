@@ -23,9 +23,17 @@ USER keycloak
 # free tier that sleeps means paying that cost at every cold start.
 RUN /opt/keycloak/bin/kc.sh build --db=postgres
 
-ENV KC_DB=postgres \
-    KC_HEALTH_ENABLED=true \
-    KC_HTTP_ENABLED=true \
+# Runtime options only. KC_DB and KC_HEALTH_ENABLED must NOT appear here: they are
+# BUILD-time options, already baked in by the kc.sh build above. With --optimized,
+# Keycloak refuses to start if a build-time option is supplied at runtime and exits 2
+# with "build time options have values that differ from what is persisted".
+#
+# Health is deliberately not enabled at all. It would have to be a build flag, and the
+# Render health check uses the realm's discovery endpoint on the main port instead —
+# which is a better probe anyway, since it proves the realm imported rather than only
+# that the process is up. Keycloak's own /health lives on management port 9000, which
+# a single-port platform does not expose.
+ENV KC_HTTP_ENABLED=true \
     KC_PROXY_HEADERS=xforwarded \
     KC_HOSTNAME_STRICT=false
 
