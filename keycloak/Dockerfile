@@ -37,29 +37,17 @@ ENV KC_HTTP_ENABLED=true \
     KC_PROXY_HEADERS=xforwarded \
     KC_HOSTNAME_STRICT=false
 
-# Memory budget for a 512 MB container. Keycloak's own default is
-# MaxRAMPercentage=70, which leaves too little for everything that is NOT heap —
-# metaspace, code cache, thread stacks and Netty's direct buffers — and the kernel
-# kills the process (exit 137) before Quarkus finishes starting.
+# No JVM memory overrides. Two attempts to fit this image into a 512 MB container
+# both failed, from opposite directions: Keycloak's own defaults were killed by the
+# kernel (exit 137), and capping metaspace at 112 MB produced
+# OutOfMemoryError: Metaspace (exit 3). Keycloak wants roughly 200 MB of metaspace
+# before any heap at all, so no split of 512 MB satisfies both — and the same logs
+# showed a TCP bind blocking for over 2 seconds, meaning 0.1 CPU is inadequate
+# independently of memory.
 #
-# Explicit numbers rather than percentages, so the sum is auditable:
-#   heap 256 + metaspace 112 + code cache 32 + native/threads ~60  =  ~460 of 512
-ENV JAVA_OPTS_KC_HEAP="-Xms48m -Xmx256m"
-# No GC flag here. The Keycloak image already selects one in its own JAVA_OPTS, and
-# JAVA_OPTS_APPEND appends rather than replaces — so adding -XX:+UseSerialGC gave the
-# JVM two collectors and it refused to start with "Multiple garbage collectors
-# selected". Overriding the collector would mean replacing JAVA_OPTS wholesale and
-# losing the image's other flags, which is not worth it: the metaspace and code-cache
-# caps below are the far larger saving.
-#
-# TieredStopAtLevel=1 keeps the JIT at C1, cutting compile memory and startup time.
-# Netty's default 16 MB buffer chunks are far too coarse here, so maxOrder drops them
-# to 512 KB.
-ENV JAVA_OPTS_APPEND="-XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=112m -XX:ReservedCodeCacheSize=32m -Dio.netty.allocator.maxOrder=5"
+# Requirement: at least 1 GB of memory and 1 shared CPU. On an adequate host the
+# image's own defaults are correct, so nothing is set here.
 
-# A cold start on this instance is slow — a starved JVM plus first-boot schema
-# creation. Render's default health-check grace is not generous enough.
-ENV KC_HTTP_MANAGEMENT_PORT=9000
 
 # The platform routes to whatever we listen on; 8080 is Keycloak's default.
 EXPOSE 8080

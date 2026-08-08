@@ -108,3 +108,39 @@ host.
 - **No automated tests.** Three bugs in this project were caught by running things and
   none by compiling them.
 - **The audit trail and register reset on restart** while the store is in memory.
+
+---
+
+## Render's free tier cannot run Keycloak
+
+Established by trying it, not by guessing. On 512 MB / 0.1 CPU Keycloak failed from
+both directions:
+
+| Configuration | Outcome |
+|---|---|
+| Keycloak's own defaults | kernel OOM kill, exit 137 |
+| `-XX:MaxMetaspaceSize=112m` | `OutOfMemoryError: Metaspace`, exit 3 |
+
+Keycloak wants roughly 200 MB of metaspace *before* any heap, so no split of 512 MB
+satisfies both — and it never reached Liquibase creating ~100 tables, the heaviest step.
+The same logs showed a TCP bind blocking for over two seconds, so 0.1 CPU is inadequate
+independently of the memory.
+
+Upgrading does not fix it cheaply either: Render Starter is still 512 MB, and 2 GB means
+Standard at roughly $25/month.
+
+**Use a VM instead.** `scripts/vm-bootstrap.sh` brings up the whole stack — Keycloak, the
+service and Postgres — on one host, so no managed database is needed:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HarshSingh21/karaka-ui/main/scripts/vm-bootstrap.sh \
+  | bash -s -- <PUBLIC_IP>
+```
+
+Oracle Cloud Always Free (Ampere A1: up to 4 cores, 24 GB, free indefinitely) is the
+recommended target. Any VM with at least 2 GB works, and there is no cold start.
+
+The script generates its own secrets on the VM, so nothing from this document's
+placeholder values reaches it.
+
+**Minimum for Keycloak: 1 GB memory, 1 shared CPU.**
