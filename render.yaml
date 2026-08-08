@@ -19,12 +19,21 @@ services:
     name: karaka-keycloak
     runtime: docker
     plan: free
-    region: singapore
+    region: ohio
     dockerfilePath: ./keycloak/Dockerfile
     dockerContext: .
     healthCheckPath: /realms/karaka/.well-known/openid-configuration
     envVars:
       - fromGroup: karaka-secrets
+      # Neon scales to zero when idle, which drops idle connections. A small pool that
+      # validates before handing a connection out means the first request after a
+      # suspend reconnects instead of failing on a dead socket.
+      - key: KC_DB_POOL_INITIAL_SIZE
+        value: "1"
+      - key: KC_DB_POOL_MIN_SIZE
+        value: "1"
+      - key: KC_DB_POOL_MAX_SIZE
+        value: "5"
       # Public URL of THIS service. Keycloak builds redirect and issuer URLs from it,
       # and gets them wrong if it is unset behind a TLS-terminating proxy.
       - key: KC_HOSTNAME
@@ -49,7 +58,7 @@ services:
     name: karaka
     runtime: docker
     plan: free
-    region: singapore
+    region: ohio
     dockerfilePath: ./service/Dockerfile
     dockerContext: .
     healthCheckPath: /actuator/health
