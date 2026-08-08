@@ -37,6 +37,24 @@ ENV KC_HTTP_ENABLED=true \
     KC_PROXY_HEADERS=xforwarded \
     KC_HOSTNAME_STRICT=false
 
+# Memory budget for a 512 MB container. Keycloak's own default is
+# MaxRAMPercentage=70, which leaves too little for everything that is NOT heap —
+# metaspace, code cache, thread stacks and Netty's direct buffers — and the kernel
+# kills the process (exit 137) before Quarkus finishes starting.
+#
+# Explicit numbers rather than percentages, so the sum is auditable:
+#   heap 256 + metaspace 112 + code cache 32 + native/threads ~60  =  ~460 of 512
+ENV JAVA_OPTS_KC_HEAP="-Xms48m -Xmx256m"
+# SerialGC: on 0.1 CPU the parallel collectors' extra threads cost more than they
+# return. TieredStopAtLevel=1 keeps the JIT at C1, cutting both compile memory and
+# startup time. Netty's default 16 MB buffer chunks are far too coarse here, so
+# maxOrder drops them to 512 KB.
+ENV JAVA_OPTS_APPEND="-XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=112m -XX:ReservedCodeCacheSize=32m -Dio.netty.allocator.maxOrder=5"
+
+# A cold start on this instance is slow — a starved JVM plus first-boot schema
+# creation. Render's default health-check grace is not generous enough.
+ENV KC_HTTP_MANAGEMENT_PORT=9000
+
 # The platform routes to whatever we listen on; 8080 is Keycloak's default.
 EXPOSE 8080
 
