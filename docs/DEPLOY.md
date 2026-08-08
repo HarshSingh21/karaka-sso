@@ -1,89 +1,127 @@
 # Deploying Karaka
 
-Two Docker services and a Postgres. Verified locally: both images build, the realm
-renders from its template, and rotated secrets take effect.
+Two containers and a Postgres. Both `Dockerfile`s build and run; verified locally with
+rotated secrets before any hosting was attempted.
 
-## Read this first
+## The one hard requirement
 
-**Vercel cannot host either service.** It runs serverless functions and static assets;
-these are long-lived JVM processes, and Keycloak is stateful. The frontend is served *by*
-the Spring service on the same origin — the BFF session cookie depends on that — so it
-cannot be split off either.
+**Keycloak needs at least 1 GB of memory and a full shared CPU.** Everything else about
+hosting is a preference; this is not.
 
-**Render's free Postgres is deleted after 30 days**, and it holds every Keycloak user,
-credential and session. Use a managed free tier that does not expire (Neon, Supabase).
-The realm re-imports from its template, but anything created afterwards — a user added
-in the console, a rotated password — exists only in that database.
+Established by trying to run it on 512 MB / 0.1 CPU and failing from both directions:
 
-**Free web services sleep after ~15 minutes** and cold-start in roughly 50 seconds. Both
-services sleeping means the first request after a quiet period is slow. The service
-entrypoint waits for Keycloak rather than crash-looping, so this is slow rather than
-broken. If you need no sleeping on a free tier, a single always-free VM (Oracle Cloud)
-running both containers is a better fit than two sleeping web services.
+| Configuration | Outcome |
+|---|---|
+| Keycloak's own defaults | kernel OOM kill, exit 137 |
+| `-XX:MaxMetaspaceSize=112m` | `OutOfMemoryError: Metaspace`, exit 3 |
 
-**The ORBIT store is in memory.** Its data resets on every restart and every wake.
-Persisting it is a JPA change, not a configuration one.
+Keycloak wants roughly 200 MB of metaspace *before* any heap, so no split of 512 MB
+satisfies both — and it never reached Liquibase creating ~100 tables, the heaviest step.
+The same logs showed a TCP bind blocked for over two seconds, so the CPU was inadequate
+independently of the memory.
+
+That rules out the free tiers of Render, Fly.io and Koyeb (256–512 MB). It does **not**
+rule out those platforms for the Spring service, which runs comfortably in 512 MB.
+
+## Recommended: Azure Container Apps
+
+Chosen because a container can be given 2 GB, and because both apps scale to zero.
+
+```bash
+brew install azure-cli
+az login
+./scripts/azure-deploy.sh
+```
+
+One script, one resource group: Postgres Flexible Server, a container registry, the
+Container Apps environment, and both apps. Idempotent — re-running updates rather than
+duplicating. Takes 12–15 minutes, mostly image builds and Postgres provisioning.
+
+Tear it all down with `./scripts/azure-deploy.sh --destroy`.
+
+Two details the script exists to get right:
+
+- **Images are built with `az acr build --file`.** There are two Dockerfiles in one repo,
+  and that flag is the only way to select one; `containerapp up --source` cannot.
+- **It is deliberately two-pass.** `KC_HOSTNAME` and `APP_BASE_URL` cannot be known until
+  Azure has assigned the FQDNs, so the apps are created with placeholders and updated
+  afterwards. `APP_BASE_URL` is the subtle one: it becomes the client's redirect URI
+  inside the realm, so a wrong value makes Keycloak refuse the redirect *after* the
+  password is accepted — which reads like a broken login rather than a URL mismatch.
+
+**Cost.** Both apps scale to zero, and the always-free grant (~180k vCPU-seconds,
+~360k GiB-seconds per month) is roughly 50 hours at Keycloak's 2 GB, so an intermittently
+used demo costs nothing. **Postgres B1ms bills continuously** (~$13/mo), covered by the
+12-month free tier on a new account and by credit after that. To avoid that entirely,
+point `KC_DB_*` at a managed free Postgres such as Neon.
+
+## Alternative: one VM
+
+Fewer moving parts than any container platform, and no cold starts.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HarshSingh21/karaka-ui/main/scripts/vm-bootstrap.sh \
+  | bash -s -- <PUBLIC_IP>
+```
+
+Brings up Keycloak, the service **and** Postgres on one host, so no managed database is
+needed. Generates its own secrets on the VM.
+
+Oracle Cloud Always Free (Ampere A1: up to 4 cores and 24 GB, free indefinitely) is the
+target; any VM with at least 2 GB works. Two things to know:
+
+- **Ampere A1 capacity is often unavailable.** Try each availability domain, retry over a
+  few hours, or drop to 1 OCPU / 6 GB.
+- **Oracle's Ubuntu images use a default-DROP iptables policy.** Opening the ports in the
+  VCN security list is *not* enough; the VM's own firewall must be opened too. The script
+  prints the commands. This catches nearly everyone once.
 
 ## Secrets
 
-Five, none of which belongs in git.
+Nothing credential-bearing is in git. The realm is a template with placeholders:
 
-| Secret | Where it lives | Notes |
-|---|---|---|
-| Postgres password | Generated by your database provider | Copy it; never invent one |
-| `KC_BOOTSTRAP_ADMIN_PASSWORD` | Platform env var | Used on **first boot only** — delete the variable afterwards, or it is a standing credential nobody rotates |
-| `KARAKA_WEB_SECRET` | Shared env group | Substituted into the realm by the entrypoint |
-| `KEYCLOAK_CLIENT_SECRET` | Shared env group | **Must equal `KARAKA_WEB_SECRET`** — Keycloak stores it, the service presents it. Divergence fails as `invalid_client`, which reads like a typo rather than a mismatch |
-| `KARAKA_API_SECRET` | Shared env group | The machine client |
-| `DEMO_USER_PASSWORD` | Shared env group | Shared by the six demo accounts. Remove the users entirely for anything real |
-
-Generate each with:
-
-```bash
-openssl rand -base64 32
+```
+keycloak/realm-template/karaka-realm.template.json   in git, placeholders only
+keycloak/realm/karaka-realm.json                     generated, gitignored
 ```
 
-**Avoid `|` and `&`** in the values — substitution uses `sed` with `|` as its delimiter,
-and `&` is sed's backreference. Base64 output contains neither, so this holds naturally.
+`keycloak/docker-entrypoint.sh` substitutes at container start and **refuses to launch if
+any placeholder survives** — an unsubstituted secret would otherwise import cleanly and
+then reject every token exchange as `invalid_client`.
 
-Define them once in a **Render environment group** attached to both services, so the
-client secret cannot drift between them.
+The template lives outside the import directory on purpose: `--import-realm` reads every
+`*.json` there, so a template alongside the realm gets imported too and Keycloak dies
+with `A redirect URI is not a valid URI`.
 
-## How the realm avoids committing secrets
+Six values, generated with `openssl rand -base64 32`:
 
-`keycloak/realm-template/karaka-realm.template.json` is what git holds, containing
-placeholders. The rendered file is written at container start by
-`keycloak/docker-entrypoint.sh`, which fails before Keycloak launches if any placeholder
-is left — an unsubstituted secret would otherwise import cleanly and then reject every
-token exchange.
+| Secret | Notes |
+|---|---|
+| Postgres password | From the provider, or generated by the deploy script |
+| `KC_BOOTSTRAP_ADMIN_PASSWORD` | First boot only — remove the variable afterwards |
+| `KARAKA_WEB_SECRET` | Substituted into the realm |
+| `KEYCLOAK_CLIENT_SECRET` | **Must equal `KARAKA_WEB_SECRET`.** Keycloak stores it, the service presents it; divergence fails as `invalid_client` |
+| `KARAKA_API_SECRET` | The machine client |
+| `DEMO_USER_PASSWORD` | Shared by the six demo accounts |
 
-The template lives **outside** `keycloak/realm/` deliberately. `--import-realm` reads
-every `*.json` in the import directory, so a template sitting there gets imported too
-and Keycloak dies with `A redirect URI is not a valid URI`. That is a real failure this
-layout exists to prevent.
+**Avoid `|` and `&`** in values — substitution uses `sed` with `|` as its delimiter and
+`&` is its backreference. Base64 output contains neither.
 
-Locally:
+For local development, `scripts/render-realm.sh` performs the same substitution from
+`.env`.
+
+## Local
 
 ```bash
-cp .env.example .env      # fill in the secrets
-./scripts/render-realm.sh # writes keycloak/realm/karaka-realm.json (gitignored)
+cp .env.example .env          # fill in the secrets
+./scripts/render-realm.sh     # writes the gitignored realm file
 docker compose up -d
+cd service && ./mvnw spring-boot:run
 ```
 
-## Deploying on Render
-
-1. **Create the database** on Neon and note the host, database, user and password.
-2. **Create the environment group** `karaka-secrets` with the five variables above,
-   plus `APP_BASE_URL` set to your app's public URL.
-3. **Deploy the blueprint** — Render reads `render.yaml` and creates both services.
-4. **Set the per-service variables** marked `sync: false`: `KC_DB_URL`,
-   `KC_DB_USERNAME`, `KC_DB_PASSWORD`, `KC_BOOTSTRAP_ADMIN_PASSWORD`.
-5. **Fix the URLs.** `render.yaml` assumes `karaka.onrender.com` and
-   `karaka-keycloak.onrender.com`. If Render assigns different names, update
-   `KC_HOSTNAME`, `KEYCLOAK_ISSUER_URI` and `APP_BASE_URL` — a mismatch here is the most
-   common cause of a login loop.
-6. **Deploy Keycloak first**, wait for its health check, then the service.
-7. **Remove `KC_BOOTSTRAP_ADMIN_PASSWORD`** once you have signed into the admin console.
+Keycloak must be reachable before the service starts: Spring resolves the OIDC discovery
+document at boot. In a container the entrypoint waits for it; run locally, start Keycloak
+first.
 
 ## What differs from local
 
@@ -94,53 +132,21 @@ docker compose up -d
 | TLS | none | terminated by the platform; `KC_PROXY_HEADERS=xforwarded` |
 | `sslRequired` | `none` | `external` |
 | Session cookie | plain | `KARAKA_COOKIE_SECURE=true` |
-| Realm secrets | `.env` + render script | env vars + entrypoint |
+| Realm secrets | `.env` + render script | platform secrets + entrypoint |
 
-`KC_PROXY_HEADERS` and `KC_HOSTNAME` are not optional. Without them Keycloak builds
-redirect and issuer URLs from the internal request and the browser is sent to the wrong
+`KC_HOSTNAME` and `KC_PROXY_HEADERS` are not optional. Without them Keycloak builds
+redirect and issuer URLs from the internal request and sends the browser to the wrong
 host.
 
-## Still outstanding before this is a real deployment
+Build-time options must not appear in the runtime environment. `KC_DB` and
+`KC_HEALTH_ENABLED` are baked in by `kc.sh build`; with `--optimized`, supplying either
+again at runtime makes Keycloak exit 2 with *"build time options have values that differ
+from what is persisted"*.
+
+## Still outstanding
 
 - **Six demo accounts share one password.** Fine for a demo, not for anything else.
-- **The old secrets remain in git history** (`dab357d`, `aacc091`). They are rotated, so
-  they no longer work, but rewriting history is the only way to remove them.
-- **No automated tests.** Three bugs in this project were caught by running things and
-  none by compiling them.
-- **The audit trail and register reset on restart** while the store is in memory.
-
----
-
-## Render's free tier cannot run Keycloak
-
-Established by trying it, not by guessing. On 512 MB / 0.1 CPU Keycloak failed from
-both directions:
-
-| Configuration | Outcome |
-|---|---|
-| Keycloak's own defaults | kernel OOM kill, exit 137 |
-| `-XX:MaxMetaspaceSize=112m` | `OutOfMemoryError: Metaspace`, exit 3 |
-
-Keycloak wants roughly 200 MB of metaspace *before* any heap, so no split of 512 MB
-satisfies both — and it never reached Liquibase creating ~100 tables, the heaviest step.
-The same logs showed a TCP bind blocking for over two seconds, so 0.1 CPU is inadequate
-independently of the memory.
-
-Upgrading does not fix it cheaply either: Render Starter is still 512 MB, and 2 GB means
-Standard at roughly $25/month.
-
-**Use a VM instead.** `scripts/vm-bootstrap.sh` brings up the whole stack — Keycloak, the
-service and Postgres — on one host, so no managed database is needed:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/HarshSingh21/karaka-ui/main/scripts/vm-bootstrap.sh \
-  | bash -s -- <PUBLIC_IP>
-```
-
-Oracle Cloud Always Free (Ampere A1: up to 4 cores, 24 GB, free indefinitely) is the
-recommended target. Any VM with at least 2 GB works, and there is no cold start.
-
-The script generates its own secrets on the VM, so nothing from this document's
-placeholder values reaches it.
-
-**Minimum for Keycloak: 1 GB memory, 1 shared CPU.**
+- **Old secrets remain in git history** (`dab357d`, `aacc091`). Rotated, so inert, but
+  only a history rewrite removes them.
+- **The register and audit trail reset on restart** — the ORBIT store is in memory.
+- `scripts/azure-deploy.sh` has not yet been exercised against a live subscription.

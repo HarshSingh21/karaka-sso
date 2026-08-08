@@ -20,7 +20,7 @@ OUTPUT="$IMPORT_DIR/karaka-realm.json"
 : "${KARAKA_WEB_SECRET:?must be set}"
 : "${KARAKA_API_SECRET:?must be set}"
 : "${DEMO_USER_PASSWORD:?must be set}"
-: "${APP_BASE_URL:?must be set, e.g. https://karaka.onrender.com}"
+: "${APP_BASE_URL:?must be set, e.g. https://your-app-host}"
 
 if [[ -f "$TEMPLATE" ]]; then
   mkdir -p "$IMPORT_DIR"

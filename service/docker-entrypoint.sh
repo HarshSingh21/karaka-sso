@@ -13,7 +13,7 @@
 # validation.
 set -euo pipefail
 
-: "${KEYCLOAK_ISSUER_URI:?must be set, e.g. https://karaka-keycloak.onrender.com/realms/karaka}"
+: "${KEYCLOAK_ISSUER_URI:?must be set, e.g. https://your-keycloak-host/realms/karaka}"
 
 DISCOVERY="${KEYCLOAK_ISSUER_URI%/}/.well-known/openid-configuration"
 ATTEMPTS="${KEYCLOAK_WAIT_ATTEMPTS:-60}"

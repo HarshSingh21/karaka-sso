@@ -250,7 +250,6 @@ karaka-ui/
 │       ├── login.ftl               Standalone (parent=base) — no PatternFly to fight.
 │       ├── theme.properties
 │       └── resources/              css · woff2 · favicon
-├── packages/                       Design-system assets (tokens, fonts, brand mark).
 └── service/
     ├── pom.xml
     └── src/main/
@@ -404,9 +403,10 @@ offers a clean retry. A private window avoids it entirely.
 - No automated tests. Behaviour above was verified by HTTP probing, which is how a CSRF
   bug in the form-submission path survived several rounds of green API checks.
 - `docs/AUTH.md` and a Postman collection are referenced in conversation but not written.
-- Design-system assets exist in three places (`.claude/skills/*/reference/`, `packages/`,
-  and `service/.../static/shared/`). Only one should be the source; the duplication is a
-  drift risk.
+- Design-system assets exist in two places: `.claude/skills/karaka-tokens/reference/`
+  (the skill's own copy, and the source of truth) and
+  `service/src/main/resources/static/shared/` (what is actually served). The served
+  copy is derived by hand, so it can still drift.
 - Unused component classes remain in `static/shared/karaka.css`. They are the design
   system's published API rather than dead code, but nothing in this release uses the table,
   modal, or toolbar styles.
