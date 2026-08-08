@@ -1,0 +1,28 @@
+# Test configuration: no Keycloak required.
+#
+# The client registration is NOT configured here. `issuer-uri` makes Spring fetch the
+# discovery document at startup, and blanking it fails outright — an empty value is
+# validated, not ignored. TestOAuth2Config supplies the registration as a bean instead,
+# which makes Boot's property-driven configuration back off entirely.
+#
+# The resource-server side is fine from properties: with an explicit jwk-set-uri, the
+# decoder is built lazily and never fetches during startup. It points at port 0 because
+# no test presents a real JWT.
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:0/realms/test/protocol/openid-connect/certs
+
+karaka:
+  jwt:
+    resource-id: karaka-api
+    principal-attribute: preferred_username
+  tenant:
+    name: TestTenant
+
+logging:
+  level:
+    com.karaka: WARN
+    org.springframework.security: WARN
