@@ -45,11 +45,17 @@ ENV KC_HTTP_ENABLED=true \
 # Explicit numbers rather than percentages, so the sum is auditable:
 #   heap 256 + metaspace 112 + code cache 32 + native/threads ~60  =  ~460 of 512
 ENV JAVA_OPTS_KC_HEAP="-Xms48m -Xmx256m"
-# SerialGC: on 0.1 CPU the parallel collectors' extra threads cost more than they
-# return. TieredStopAtLevel=1 keeps the JIT at C1, cutting both compile memory and
-# startup time. Netty's default 16 MB buffer chunks are far too coarse here, so
-# maxOrder drops them to 512 KB.
-ENV JAVA_OPTS_APPEND="-XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=112m -XX:ReservedCodeCacheSize=32m -Dio.netty.allocator.maxOrder=5"
+# No GC flag here. The Keycloak image already selects one in its own JAVA_OPTS, and
+# JAVA_OPTS_APPEND appends rather than replaces — so adding -XX:+UseSerialGC gave the
+# JVM two collectors and it refused to start with "Multiple garbage collectors
+# selected". Overriding the collector would mean replacing JAVA_OPTS wholesale and
+# losing the image's other flags, which is not worth it: the metaspace and code-cache
+# caps below are the far larger saving.
+#
+# TieredStopAtLevel=1 keeps the JIT at C1, cutting compile memory and startup time.
+# Netty's default 16 MB buffer chunks are far too coarse here, so maxOrder drops them
+# to 512 KB.
+ENV JAVA_OPTS_APPEND="-XX:TieredStopAtLevel=1 -XX:MaxMetaspaceSize=112m -XX:ReservedCodeCacheSize=32m -Dio.netty.allocator.maxOrder=5"
 
 # A cold start on this instance is slow — a starved JVM plus first-boot schema
 # creation. Render's default health-check grace is not generous enough.
