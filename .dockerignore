@@ -1,0 +1,11 @@
+# Keeps the build context small. Without this it was ~28 MB, most of it target/ and
+# .git, uploaded on every build. target/ is excluded EXCEPT the jar, which
+# Dockerfile.prebuilt copies in.
+.git
+service/target/*
+!service/target/karaka-service-*.jar
+.env
+.azure-secrets
+keycloak/realm/*.json
+docs
+README.md

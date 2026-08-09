@@ -90,12 +90,36 @@ if ! az acr show -n "$ACR" -g "$RG" >/dev/null 2>&1; then
   else az acr create -n "$ACR" -g "$RG" --sku Basic --admin-enabled true -o none; echo "   created $ACR"; fi
 fi
 
-# Server-side builds. --file is why this is used rather than `containerapp up`:
-# there are two Dockerfiles in one repo and that flag is the only way to pick one.
-echo "══ building images in ACR (a few minutes)"
-az acr build -r "$ACR" -t karaka-keycloak:latest -f keycloak/Dockerfile . -o none
-az acr build -r "$ACR" -t karaka-service:latest  -f service/Dockerfile  . -o none
 ACR_SERVER=$(az acr show -n "$ACR" -g "$RG" --query loginServer -o tsv)
+
+# Built locally and pushed, NOT with `az acr build`. Azure blocks ACR Tasks on trial
+# subscriptions — server-side builds fail with TasksOperationsNotAllowed — so the
+# server-side path is unavailable regardless of how convenient it would be.
+#
+# --platform linux/amd64 is mandatory: Container Apps runs amd64, and an arm64 image
+# pushed from an Apple Silicon machine fails at runtime with an exec format error
+# rather than at build or push time.
+echo "══ building and pushing images (amd64)"
+az acr login -n "$ACR" -o none
+docker buildx create --use --name karaka-builder >/dev/null 2>&1 || docker buildx use karaka-builder
+
+# Keycloak cross-builds directly: its only heavy step is kc.sh build, which is tolerable
+# under emulation.
+docker buildx build --platform linux/amd64 -f keycloak/Dockerfile \
+  -t "$ACR_SERVER/karaka-keycloak:latest" --push . >/dev/null
+
+# The service does NOT cross-build its Maven stage. Java bytecode is
+# architecture-independent, so the jar is built natively at full speed and only the thin
+# runtime layer is cross-built. Emulating Maven would cost many minutes for nothing.
+echo "   building the jar natively first"
+# `clean` is not optional here. Stale classes in target/ from an earlier build break
+# the Spring Boot repackage step: macOS had left "KarakaApplication 2.class" alongside
+# the real one, and the plugin refused with "Unable to find a single main class". The
+# COPY glob in Dockerfile.prebuilt would be similarly ambiguous with two jars present.
+docker run --rm -v "$PWD/service":/app -v "$HOME/.m2":/root/.m2 -w /app \
+  maven:3.9-eclipse-temurin-25 mvn -B -q -DskipTests clean package
+docker buildx build --platform linux/amd64 -f service/Dockerfile.prebuilt \
+  -t "$ACR_SERVER/karaka-service:latest" --push . >/dev/null
 ACR_USER=$(az acr credential show -n "$ACR" --query username -o tsv)
 ACR_PASS=$(az acr credential show -n "$ACR" --query 'passwords[0].value' -o tsv)
 
@@ -114,7 +138,18 @@ if ! az postgres flexible-server show -g "$RG" -n "$PG" >/dev/null 2>&1; then
     echo "   created $PG"
   fi
 fi
-az postgres flexible-server db create -g "$RG" -s "$PG" -d "$PG_DB" -o none 2>/dev/null || true
+# The flag is --name, not -d. And the failure is NOT suppressed: an earlier version
+# had `2>/dev/null || true` to make this idempotent, which instead hid the wrong flag
+# entirely — az printed its help text, exited 0, and the database was never created.
+# Keycloak then failed much later with FATAL: database "keycloak" does not exist.
+#
+# Idempotency is achieved by checking first rather than by discarding errors.
+if ! az postgres flexible-server db list -g "$RG" -s "$PG" --query "[].name" -o tsv | grep -qx "$PG_DB"; then
+  az postgres flexible-server db create -g "$RG" -s "$PG" --name "$PG_DB" -o none
+  echo "   created database $PG_DB"
+else
+  echo "   database $PG_DB already present"
+fi
 PG_HOST="$PG.postgres.database.azure.com"
 # JDBC form, not the psql URI: the driver cannot parse user:password@host, and
 # sslmode=require is mandatory because Azure rejects unencrypted connections.

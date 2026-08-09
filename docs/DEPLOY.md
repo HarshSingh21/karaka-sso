@@ -25,11 +25,13 @@ rule out those platforms for the Spring service, which runs comfortably in 512 M
 
 ## Recommended: Azure Container Apps
 
-Chosen because a container can be given 2 GB, and because both apps scale to zero.
+Chosen because a container can be given 2 GB, and because both apps scale to zero. Now
+run end to end against a live trial subscription; everything below reflects that run.
 
 ```bash
 brew install azure-cli
 az login
+docker info >/dev/null      # Docker must be running — images are built here, not in Azure
 ./scripts/azure-deploy.sh
 ```
 
@@ -41,13 +43,78 @@ Tear it all down with `./scripts/azure-deploy.sh --destroy`.
 
 Two details the script exists to get right:
 
-- **Images are built with `az acr build --file`.** There are two Dockerfiles in one repo,
-  and that flag is the only way to select one; `containerapp up --source` cannot.
+- **Images are built locally and pushed**, cross-compiled for `linux/amd64` with
+  `docker buildx`. The original design used `az acr build --file`, because there are two
+  Dockerfiles in one repo and that flag is the only way to select one; a trial
+  subscription cannot run ACR builds at all. See below.
 - **It is deliberately two-pass.** `KC_HOSTNAME` and `APP_BASE_URL` cannot be known until
   Azure has assigned the FQDNs, so the apps are created with placeholders and updated
   afterwards. `APP_BASE_URL` is the subtle one: it becomes the client's redirect URI
   inside the realm, so a wrong value makes Keycloak refuse the redirect *after* the
   password is accepted — which reads like a broken login rather than a URL mismatch.
+
+### Problems you will hit on a trial subscription
+
+Four of these, in order. Each cost a full deploy cycle to find, and not one of them fails
+where you would go looking.
+
+**1. `az acr build` is unusable.** Azure does not permit ACR Tasks on trial subscriptions:
+
+```
+ERROR: (TasksOperationsNotAllowed) ACR Tasks requests for the registry ... are not permitted
+```
+
+No flag, region or SKU changes this — server-side builds are simply off. The script builds
+locally and pushes to the registry instead, which is why Docker has to be running.
+
+**2. An arm64 image pushes successfully and then fails to start.** Container Apps runs
+`linux/amd64`; an Apple Silicon machine builds arm64 by default. Nothing objects at build
+or push time. The container starts and dies:
+
+```
+exec /app/docker-entrypoint.sh: exec format error
+```
+
+Every build therefore passes `--platform linux/amd64` via `docker buildx`. Because the
+failure is at *runtime*, the symptom is a container app that crash-loops with no build
+error anywhere to explain it.
+
+**3. Do not cross-build the Maven stage — build the jar natively.** Java bytecode is
+architecture-independent, so emulating an entire `mvn package` under QEMU costs many
+minutes and buys nothing. `service/Dockerfile.prebuilt` exists for this: it copies an
+already-built jar into a runtime-only image, so only that thin layer is cross-built while
+the jar is compiled at native speed. `service/Dockerfile` remains the self-contained
+build for anywhere that builds natively.
+
+Related: the jar must be built with `clean package`, not `package`. A stale `target/`
+containing a macOS duplicate (`KarakaApplication 2.class` beside the real one) makes the
+Spring Boot plugin refuse to repackage:
+
+```
+Unable to find a single main class from the following candidates
+```
+
+Two jars in `target/` would make `Dockerfile.prebuilt`'s `COPY` glob ambiguous in the same
+way. A `.dockerignore` also excludes `target/` and `.git` from the build context, which was
+otherwise ~28 MB uploaded on every build.
+
+**4. Never suppress an `az` error to make a step idempotent.** The script used to create
+the Keycloak database with:
+
+```bash
+az postgres flexible-server db create -g "$RG" -s "$PG" -d "$PG_DB" -o none 2>/dev/null || true
+```
+
+The flag is `--name`, not `-d`. Given an unknown flag, `az` prints its help text and exits
+**0** — so `|| true` was never even reached, the wrong flag went unnoticed, and the database
+was never created. That surfaced fifteen minutes later as a Keycloak crash-loop:
+
+```
+FATAL: database "keycloak" does not exist
+```
+
+It now checks `db list` for the database first and lets a genuine failure fail. Idempotency
+comes from asking, not from discarding errors.
 
 **Cost.** Both apps scale to zero, and the always-free grant (~180k vCPU-seconds,
 ~360k GiB-seconds per month) is roughly 50 hours at Keycloak's 2 GB, so an intermittently
@@ -149,4 +216,6 @@ from what is persisted"*.
 - **Old secrets remain in git history** (`dab357d`, `aacc091`). Rotated, so inert, but
   only a history rewrite removes them.
 - **The register and audit trail reset on restart** — the ORBIT store is in memory.
-- `scripts/azure-deploy.sh` has not yet been exercised against a live subscription.
+- **`scripts/azure-deploy.sh` now requires a local Docker daemon**, because a trial
+  subscription cannot build in ACR. On a subscription that permits ACR Tasks, the
+  server-side path would be preferable and the script does not currently offer it.

@@ -1,0 +1,36 @@
+# Runtime-only image, for a jar that has already been built.
+#
+# Exists because of a cross-architecture problem. Azure Container Apps runs linux/amd64,
+# but development here is on arm64, so the image must be cross-built. Doing that with
+# service/Dockerfile would run the entire Maven build under QEMU emulation — many minutes
+# for no benefit, because **Java bytecode is architecture-independent**. The jar is built
+# natively at full speed, and only this thin runtime layer is cross-built.
+#
+# Usage (the deploy script does this):
+#   mvn -DskipTests package                                    # native, fast
+#   docker buildx build --platform linux/amd64 -f service/Dockerfile.prebuilt .
+#
+# service/Dockerfile remains the self-contained build for anywhere that builds natively.
+FROM eclipse-temurin:25-jre
+WORKDIR /app
+
+# curl is needed by the entrypoint's readiness check. A TCP probe would not do: behind a
+# platform router the port answers even while the target is asleep, so the check has to
+# be a real HTTP request to the discovery document.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Wildcard rather than a pinned version, so a version bump in pom.xml does not silently
+# break the copy.
+COPY service/target/karaka-service-*.jar ./app.jar
+COPY service/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
+RUN useradd --system --uid 10001 karaka && chown -R karaka /app
+USER karaka
+
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70"
+
+EXPOSE 8080
+ENTRYPOINT ["./docker-entrypoint.sh"]
