@@ -18,6 +18,13 @@ services:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      # 5433 on the host, because 5432 is usually already taken by another local Postgres.
+      # Bound to 127.0.0.1 explicitly, NOT 0.0.0.0: this database holds the whole realm —
+      # users, credentials, client secrets — behind a short development password, and
+      # publishing it on every interface would expose it to anything on the same network.
+      # Keycloak reaches it as db:5432 on the compose network regardless of this mapping.
+      - "127.0.0.1:5433:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -66,6 +73,30 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mail:
+        condition: service_started
+    restart: unless-stopped
+
+  mail:
+    # Local SMTP sink. Accepts every message and delivers none of them, exposing
+    # what was sent in a web UI and a REST API.
+    #
+    # Chosen over a real provider for local work on purpose:
+    #   - no credentials, so nothing to keep out of git
+    #   - no deliverability, spam filtering or rate limits between you and the result
+    #   - the reset link is readable immediately, including in an automated test
+    #   - a stray password-reset email can never reach a real inbox
+    #
+    # Production uses a real provider instead — same scripts/set-smtp.sh, different
+    # SMTP_* values. Nothing else changes.
+    image: axllent/mailpit:latest
+    container_name: karaka-mail
+    ports:
+      - "8025:8025"   # web UI  -> http://localhost:8025
+      - "1025:1025"   # SMTP, reachable from Keycloak as mail:1025
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
     restart: unless-stopped
 
 volumes:

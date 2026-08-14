@@ -55,6 +55,10 @@ echo "══ 3. Secrets"
 # Generated on the VM and never leaving it. | & + / = are stripped because the realm
 # substitution uses sed with | as its delimiter and & is its backreference character.
 gen() { openssl rand -base64 "${1:-32}" | tr -d '\n|&+/='; }
+
+# Stripping +/= leaves only alphanumerics, which cannot satisfy the realm's
+# specialChars(1) rule. Passwords Keycloak validates must use genpw().
+genpw() { printf '%s#Aa9' "$(gen "${1:-18}")"; }
 if [[ ! -f .env ]]; then
   WEB=$(gen 32)
   cat > .env <<EOF
@@ -65,7 +69,7 @@ KC_ADMIN_PASSWORD=$(gen 24)
 KEYCLOAK_CLIENT_SECRET=$WEB
 KARAKA_WEB_SECRET=$WEB
 KARAKA_API_SECRET=$(gen 32)
-DEMO_USER_PASSWORD=$(gen 18)
+DEMO_USER_PASSWORD=$(genpw 18)
 APP_BASE_URL=http://$PUBLIC_HOST:8080
 EOF
   chmod 600 .env

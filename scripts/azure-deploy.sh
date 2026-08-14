@@ -55,6 +55,13 @@ az extension add --name containerapp --upgrade --only-show-errors >/dev/null 2>&
 # 1. Secrets, generated locally and never committed
 # ---------------------------------------------------------------------------
 gen() { openssl rand -base64 "${1:-32}" | tr -d '\n|&+/='; }
+
+# gen() strips +/= from base64, which leaves ONLY alphanumerics — so it can never
+# satisfy the realm's specialChars(1) rule. Anything Keycloak validates against the
+# password policy must come from genpw(), which appends a fixed special/upper/lower/
+# digit tail. '#' is safe for the realm substitution in keycloak/docker-entrypoint.sh,
+# which seds with '|' as its delimiter and treats '&' as a backreference.
+genpw() { printf '%s#Aa9' "$(gen "${1:-18}")"; }
 SECRETS_FILE=".azure-secrets"
 if [[ -f "$SECRETS_FILE" ]]; then
   echo "══ reusing $SECRETS_FILE"
@@ -67,7 +74,7 @@ PG_PASSWORD=$(gen 24)
 KARAKA_WEB_SECRET=$WEB
 KEYCLOAK_CLIENT_SECRET=$WEB
 KARAKA_API_SECRET=$(gen 32)
-DEMO_USER_PASSWORD=$(gen 18)
+DEMO_USER_PASSWORD=$(genpw 18)
 KC_ADMIN_PASSWORD=$(gen 24)
 EOF
   chmod 600 "$SECRETS_FILE"
