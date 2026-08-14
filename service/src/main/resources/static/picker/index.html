@@ -235,6 +235,13 @@ a.tile:hover{transform:translateY(-2px);border-color:var(--accent);
           <div class="who-mail">${esc(s.email || s.username)} &middot; ${esc(c.tenant)}</div>
         </div>
         <div class="who-spacer"></div>
+        <!-- Application-Initiated Actions. Plain links: Keycloak owns the pages, the forms and
+             the credential, so Karaka never handles a password or a TOTP secret. The kc_action
+             parameter is allow-listed in KeycloakActionRequestResolver. -->
+        <a class="btn" href="/oauth2/authorization/keycloak?kc_action=CONFIGURE_TOTP"
+           title="Enrol an authenticator app as a second factor">Set up 2FA</a>
+        <a class="btn" href="/oauth2/authorization/keycloak?kc_action=UPDATE_PASSWORD"
+           title="Change your password on Keycloak">Change password</a>
         <form method="post" action="/logout">
           <input type="hidden" name="_csrf" value="${esc(cookie('XSRF-TOKEN'))}">
           <button class="btn" type="submit">Sign out</button>

@@ -3,6 +3,7 @@ package com.karaka;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Karaka suite service.
@@ -25,6 +26,9 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan
+// Only for evicting idle rate-limiter entries; nothing here runs business logic
+// on a timer.
+@EnableScheduling
 public class KarakaApplication {
 
   public static void main(String[] args) {

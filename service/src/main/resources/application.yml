@@ -71,6 +71,18 @@ karaka:
     resource-id: karaka-api
     # Claim used as the principal name. Falls back to `sub` when absent.
     principal-attribute: preferred_username
+  password-reset:
+    # Service account that looks users up and asks Keycloak to send the reset mail.
+    # Needs realm-management roles view-users and manage-users, or every lookup 403s.
+    admin-client-id: karaka-api
+    admin-client-secret: ${KARAKA_API_SECRET:}
+    # Client the reset link returns the user to; must own the redirect URI.
+    email-client-id: karaka-web
+    # This endpoint confirms which usernames exist, and Keycloak's bruteForceProtected does
+    # NOT cover it — that counts failed logins. These limits are the only thing between it
+    # and unmetered account enumeration.
+    max-per-window: 5
+    window: 15m
   tenant:
     # Rendered as the .org-tag beside the Karaka wordmark. One realm per tenant
     # is the scaling path — see docs/AUTH.md § Multi-tenancy.

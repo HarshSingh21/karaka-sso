@@ -1,9 +1,10 @@
 package com.karaka.config;
 
-import com.karaka.demo.SuiteProduct;
+import com.karaka.model.enums.SuiteProduct;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import com.karaka.config.secure.BrowserAccessDeniedHandler;
 
 /**
  * Clean URLs for the static pages.
@@ -25,7 +26,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * silently 404s.
  */
 @Configuration
-class WebRoutingConfig implements WebMvcConfigurer {
+public class WebRoutingConfig implements WebMvcConfigurer {
 
   private static final String PRODUCT_VIEW = "forward:/product/index.html";
 
@@ -46,6 +47,13 @@ class WebRoutingConfig implements WebMvcConfigurer {
     // necessity: there is no session at this point, and requiring one would bounce
     // the user back into the flow that just failed.
     registry.addViewController("/sign-in-failed").setViewName("forward:/sign-in-failed/index.html");
+
+    // Reached from the Keycloak login page's "Forgot Password?" link. Owned by the
+    // application rather than Keycloak because it reports whether the account exists,
+    // which Keycloak's own reset page deliberately refuses to disclose.
+    registry.addViewController("/forgot-password")
+        .setViewName("forward:/forgot-password/index.html");
+    registry.addRedirectViewController("/forgot-password/", "/forgot-password");
 
     for (SuiteProduct product : SuiteProduct.values()) {
       registry.addViewController(product.path()).setViewName(PRODUCT_VIEW);

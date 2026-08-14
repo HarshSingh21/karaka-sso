@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
  * exit dates and audit timestamps without sleeping or tolerating drift.
  */
 @Configuration
-class TimeConfig {
+public class TimeConfig {
 
   @Bean
   Clock systemClock() {

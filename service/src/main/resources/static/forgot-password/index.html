@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset your password — Karaka</title>
+<link rel="icon" href="/shared/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/shared/karaka.css">
+<style>
+/* id is "reset", not "app": #app is the rail+main flex shell in karaka.css and would
+   split this single-column page into columns. */
+#reset{max-width:520px;margin:0 auto;padding:11vh 24px 40px}
+.mark{width:48px;height:48px;margin:0 auto 18px;border-radius:14px;display:grid;place-items:center;
+  background:var(--accent-wash);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);
+  color:var(--accent);font-size:20px;font-weight:800}
+h1{margin:0 0 8px;font-size:24px;font-weight:800;letter-spacing:-.02em;text-align:center}
+.sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 24px;line-height:1.6;text-align:center}
+label{display:block;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:7px}
+input{width:100%;box-sizing:border-box;padding:11px 13px;border-radius:10px;font:inherit;font-size:14px;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink)}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+.actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+.result{margin-top:20px;padding:14px 16px;border-radius:12px;font-size:13px;line-height:1.65;
+  border:1px solid var(--border);background:var(--surface);display:none}
+.result.show{display:block}
+.result.ok{border-color:color-mix(in srgb,var(--success) 35%,transparent);background:var(--success-wash)}
+.result.bad{border-color:color-mix(in srgb,var(--warn) 35%,transparent);background:var(--warn-wash)}
+.result-head{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:7px}
+.hint{margin-top:22px;font-size:11.5px;color:var(--ink-faint);line-height:1.6;text-align:center}
+</style>
+</head>
+<body>
+<div id="reset">
+  <div class="mark">&#8634;</div>
+  <h1>Reset your password</h1>
+  <p class="sub">
+    Enter the username or email on your Karaka account. We will email you a link to set
+    a new password.
+  </p>
+
+  <form id="form" novalidate>
+    <label for="identifier">Username or email</label>
+    <input id="identifier" name="identifier" type="text" autocomplete="username" autofocus
+           maxlength="320" required>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit" id="submit">Send reset link</button>
+      <a class="btn" href="/">Back to sign in</a>
+    </div>
+  </form>
+
+  <div class="result" id="result" role="status" aria-live="polite">
+    <div class="result-head" id="result-head">Result</div>
+    <div id="result-body"></div>
+  </div>
+
+  <p class="hint">
+    Karaka accounts are created by your workspace admin &mdash; there is no self-service
+    sign-up.
+  </p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var form = document.getElementById('form');
+  var input = document.getElementById('identifier');
+  var submit = document.getElementById('submit');
+  var box = document.getElementById('result');
+  var head = document.getElementById('result-head');
+  var body = document.getElementById('result-body');
+
+  /* Outcome drives presentation; the server owns the wording. Adding an outcome without
+     touching this map degrades to neutral styling rather than throwing. */
+  var HEADINGS = {
+    SENT:         ['Check your email', 'ok'],
+    NO_ACCOUNT:   ['No account found', 'bad'],
+    NO_EMAIL:     ['No email on file', 'bad'],
+    DISABLED:     ['Account disabled', 'bad'],
+    RATE_LIMITED: ['Too many attempts', 'bad'],
+    UNAVAILABLE:  ['Temporarily unavailable', 'bad']
+  };
+
+  /* The browser chain has CSRF enabled, and CookieCsrfTokenRepository.withHttpOnlyFalse()
+     writes XSRF-TOKEN on the GET that served this page. The value is sent back verbatim —
+     CookieCsrfTokenRequestHandler compares it plainly, with no XOR masking. */
+  function csrfToken() {
+    var hit = document.cookie.split('; ').find(function (c) {
+      return c.indexOf('XSRF-TOKEN=') === 0;
+    });
+    return hit ? decodeURIComponent(hit.substring('XSRF-TOKEN='.length)) : '';
+  }
+
+  function show(outcome, message) {
+    var meta = HEADINGS[outcome] || [outcome, ''];
+    head.textContent = meta[0];
+    body.textContent = message;
+    box.className = 'result show' + (meta[1] ? ' ' + meta[1] : '');
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var identifier = input.value.trim();
+    if (!identifier) { input.focus(); return; }
+
+    submit.disabled = true;
+    submit.textContent = 'Sending…';
+
+    fetch('/api/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': csrfToken() },
+      body: JSON.stringify({ identifier: identifier })
+    })
+      .then(function (response) {
+        /* 429 and 503 still carry a body; only a genuinely empty response is a surprise. */
+        return response.json().catch(function () {
+          return { outcome: 'UNAVAILABLE', message: 'Unexpected response (' + response.status + ').' };
+        });
+      })
+      .then(function (data) { show(data.outcome, data.message); })
+      .catch(function () {
+        show('UNAVAILABLE', 'Could not reach Karaka. Check your connection and try again.');
+      })
+      .finally(function () {
+        submit.disabled = false;
+        submit.textContent = 'Send reset link';
+      });
+  });
+})();
+</script>
+</body>
+</html>
