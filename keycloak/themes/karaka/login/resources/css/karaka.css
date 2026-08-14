@@ -168,7 +168,29 @@ button,input{font-family:inherit;font-size:inherit}
 .social{margin-top:22px;padding-top:20px;border-top:1px solid var(--border-subtle)}
 .social-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:12px}
 .social-list{display:flex;flex-direction:column;gap:9px}
-.social-btn{display:flex;align-items:center;justify-content:center;height:42px;border-radius:10px;border:1px solid var(--border-subtle);background:var(--surface-raised);color:var(--foreground);font-weight:700;font-size:13px}
-.social-btn:hover{border-color:var(--primary);text-decoration:none}
+/* White ground, not --surface-raised: Google's identity guidelines require its four-colour
+   mark on white, and the theme's lavender surface both breaks that and muddies the mark. */
+.social-btn{display:flex;align-items:center;justify-content:center;gap:10px;height:44px;border-radius:10px;border:1px solid var(--border-subtle);background:#fff;color:var(--foreground);font-weight:700;font-size:13.5px;transition:border-color .15s,box-shadow .15s}
+.social-btn:hover{border-color:var(--primary);text-decoration:none;box-shadow:0 1px 4px rgba(12,18,32,.10)}
+.social-mark{flex:0 0 auto;width:18px;height:18px;display:block}
+/* Fallback tile for a provider with no mark, so the row stays aligned. */
+.social-mark-letter{display:grid;place-items:center;border-radius:4px;background:var(--foreground);color:#fff;font-size:10px;font-weight:800;line-height:1}
+
+/* Cancel on an app-initiated password change: a form submit button that must read as a
+   link, since it is the secondary action next to .btn-gradient. */
+.link-button{background:none;border:0;padding:0;font:inherit;font-size:12px;color:var(--primary);cursor:pointer;text-decoration:underline}
+.link-button:hover{opacity:.85}
+
+/* TOTP enrolment: numbered steps, the QR panel, and the manual-entry fallback. */
+.totp-steps{margin:14px 0 18px;padding-left:20px;color:var(--muted);font-size:12.5px;line-height:1.8}
+.totp-steps li{margin-bottom:10px}
+.totp-apps{display:block;color:var(--foreground);font-weight:700;font-size:11.5px}
+.totp-qr{margin:10px 0;padding:12px;background:#fff;border:1px solid var(--border-subtle);border-radius:10px;display:inline-block}
+.totp-qr img{display:block;width:180px;height:180px;image-rendering:pixelated}
+.totp-manual{margin-top:6px;font-size:12px}
+.totp-manual summary{cursor:pointer;color:var(--primary);font-weight:700}
+.totp-secret{display:block;margin:8px 0;padding:9px 11px;border-radius:8px;background:var(--surface-raised);border:1px solid var(--border-subtle);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;word-break:break-all;color:var(--foreground)}
+.totp-meta{color:var(--muted);font-size:11px;margin:0}
+.otp-choice{margin-bottom:4px}
 
 .foot-note{margin-top:22px;text-align:center;font-size:11.5px;color:var(--muted)}
