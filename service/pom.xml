@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.5.9</version>
+    <version>4.1.0</version>
     <relativePath/>
   </parent>
 
@@ -18,10 +18,12 @@
   <description>Karaka suite backend-for-frontend and ORBIT employee register</description>
 
   <properties>
-    <!-- Java 25 (LTS). Spring Boot 3.5.9 supports it; earlier 3.5.x patches do
-         not, so do not downgrade the parent without also lowering this. -->
+    <!-- Java 25 (LTS). Spring Boot 4.x baselines on Java 17 and supports 25. -->
     <java.version>25</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Pinned rather than inherited: Lombok patches javac internals, so the version has
+         to track the JDK. The Boot-managed version can lag a new JDK release. -->
+    <lombok.version>1.18.46</lombok.version>
   </properties>
 
   <dependencies>
@@ -50,6 +52,26 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!-- Spring Boot 4 split the old monolithic auto-configuration into fine-grained modules,
+         and RestClient moved out of spring-boot-starter-web into its own starter. Without
+         this, RestClient.Builder is simply not a bean and every injection of it fails at
+         startup with NoSuchBeanDefinitionException — which is exactly how this surfaced when
+         upgrading from 3.5.9. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-restclient</artifactId>
+    </dependency>
+
+    <!-- Boilerplate removal on models and services. Deliberately NOT used on DTOs: those are
+         records, which already give a canonical constructor, accessors, equals and toString.
+         provided scope — Lombok is an annotation processor, absent at runtime. -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
@@ -72,6 +94,28 @@
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- Boot 4's modularisation moved MockMvc's auto-configuration out of
+         spring-boot-starter-test. Without this, @AutoConfigureMockMvc is on the classpath and
+         compiles, but contributes no bean — the tests fail at runtime with
+         "No qualifying bean of type MockMvc", which reads like a broken test rather than a
+         missing dependency. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- Applies SecurityMockMvcConfigurers.springSecurity() to the auto-configured MockMvc.
+         Without it the filter chain still runs — unauthenticated calls correctly 401 — but
+         @WithMockUser's SecurityContext never reaches the request, so EVERY authenticated
+         test 401s too. That failure looks like broken authorization rules rather than a
+         missing test dependency, which is what makes it worth naming here. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -84,6 +128,16 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
+          <!-- Lombok must be declared explicitly here. Boot 4's parent sets an empty
+               annotationProcessorPaths, and an empty list means "no processors at all" —
+               Lombok then silently does nothing and every getter call fails to compile. -->
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </annotationProcessorPaths>
           <compilerArgs>
             <!-- Keeps constructor parameter names in the bytecode so Jackson
                  binds records and DTOs without @JsonProperty on every field. -->
