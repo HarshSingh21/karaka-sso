@@ -10,6 +10,16 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "verifyEmail": false,
+  "passwordPolicy": "length(12) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1) and notUsername(undefined) and passwordHistory(3) and forceExpiredPasswordChange(4)",
+  "eventsEnabled": true,
+  "eventsExpiration": 604800,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
   "bruteForceProtected": true,
   "permanentLockout": false,
   "failureFactor": 10,
@@ -257,20 +267,23 @@
   "clients": [
     {
       "clientId": "karaka-web",
+      "rootUrl": "http://localhost:8080",
+      "baseUrl": "http://localhost:8080",
       "name": "Karaka web (Spring BFF)",
       "description": "Backend-for-frontend for the browser UIs. Confidential: the secret and every token stay server-side, and the browser holds only a session cookie.",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "yZjWyK9ZIR2T6JQeoRWCp9XSSkVaiHv7Eg9dWuW42A8",
+      "secret": "NNandx4STpz1fJOMnuDC7Xy8XUHc2k6COlObs3fi2g",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "frontchannelLogout": true,
       "redirectUris": [
-        "http://localhost:8080/login/oauth2/code/keycloak"
+        "http://localhost:8080/login/oauth2/code/keycloak",
+        "http://localhost:8080/*"
       ],
       "webOrigins": [],
       "attributes": {
@@ -332,6 +345,17 @@
       "optionalClientScopes": []
     }
   ],
+  "clientScopeMappings": {
+    "realm-management": [
+      {
+        "client": "karaka-api",
+        "roles": [
+          "view-users",
+          "manage-users"
+        ]
+      }
+    ]
+  },
   "scopeMappings": [
     {
       "client": "karaka-api",
@@ -359,7 +383,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "Karaka#Demo2026!",
           "temporary": false
         }
       ],
@@ -378,7 +402,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "Karaka#Demo2026!",
           "temporary": false
         }
       ],
@@ -398,7 +422,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "Karaka#Demo2026!",
           "temporary": false
         }
       ],
@@ -418,7 +442,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "Karaka#Demo2026!",
           "temporary": false
         }
       ],
@@ -437,7 +461,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "Karaka#Demo2026!",
           "temporary": false
         }
       ],
@@ -457,7 +481,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "0geC8odsfHBvSzAbm4IH2CI4Yls1NTT",
+          "value": "Karaka#Demo2026!",
           "temporary": false
         }
       ],
@@ -467,6 +491,12 @@
       "username": "service-account-karaka-api",
       "enabled": true,
       "serviceAccountClientId": "karaka-api",
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "manage-users"
+        ]
+      },
       "realmRoles": [
         "ORBIT_VIEW",
         "BURA_VIEW",
